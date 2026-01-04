@@ -1,25 +1,30 @@
-
 import logging
-import sys
+from logging.handlers import RotatingFileHandler
 import os
 
-def setup_logger(name: str = "ai_travel_agent"):
-    logger = logging.getLogger(name)
+def setup_logger(name="ai_travel_agent", log_file="app.log", level=logging.INFO):
+    """Function to setup as many loggers as you want"""
     
+    # Create logs directory if not exists
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
+
+    log_path = os.path.join("logs", log_file)
+    
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    handler = RotatingFileHandler(log_path, maxBytes=10*1024*1024, backupCount=5)
+    handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    
+    # Avoid adding handlers multiple times
     if not logger.handlers:
-        logger.setLevel(logging.DEBUG)
-        
-        # Console Handler
-        ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
-        
-        # File Handler (optional)
-        # fh = logging.FileHandler("agent.log")
-        # fh.setLevel(logging.DEBUG)
-        # fh.setFormatter(formatter)
-        # logger.addHandler(fh)
+        logger.addHandler(handler)
+        logger.addHandler(console_handler)
         
     return logger

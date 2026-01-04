@@ -13,11 +13,19 @@ class TravelState(BaseModel):
     max_flight_price: Optional[float] = None
     
     # Trip parameters
-    trip_purpose: Optional[str] = "vacation"  # vacation or work
-    travel_party: Optional[str] = "solo_male"  # solo_male, solo_female, or group
-    budget: Optional[float] = None  # Total budget
+    trip_purpose: Optional[str] = "vacation"
+    travel_party: Optional[str] = "solo" # 'solo' or 'group'
+    
+    # Age logic
+    traveler_age: Optional[int] = None # For solo
+    group_age_min: Optional[int] = None # For group
+    group_age_max: Optional[int] = None # For group
+    
+    transportation_mode: Optional[str] = "public" # public, car, walking
+    budget: Optional[float] = None
 
     weather_summary: Optional[str] = None
+    weather_info: Optional[Dict[str, Any]] = None # Structured forecast
     accommodations: List[Dict[str, Any]] = []
     flights: List[Dict[str, Any]] = []
     recommended_hotels: List[Dict[str, Any]] = []

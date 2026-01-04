@@ -29,7 +29,8 @@ def generate_itinerary(state):
         
         Trip Context:
         - Purpose: {trip_purpose}
-        - Travelers: {travel_party}
+        - Travelers: {travel_party} (Age Info: {age_context})
+        - Mode of Transportation: {transportation_mode}
         - Budget: ${budget}
         
         Using these options found:
@@ -41,7 +42,7 @@ def generate_itinerary(state):
         
         The itinerary should include:
         1. Arrival and check-in.
-        2. Daily activities (mix of sightseeing, food, relaxation) tailored to the trip purpose (e.g., if work, ensure wifi/cafes; if vacation, focus on fun) and party type.
+        2. Daily activities (mix of sightseeing, food, relaxation) tailored to the trip purpose, age group, and transportation mode (e.g., if walking/public transit, cluster activities; if car, can go further).
         3. Departure details.
         
         Keep it structured and fun!
@@ -50,6 +51,13 @@ def generate_itinerary(state):
     
     chain = prompt | llm | StrOutputParser()
     
+    # Construct age context string
+    age_context = "Unknown"
+    if state.travel_party == "solo":
+        age_context = f"Age: {state.traveler_age}" if state.traveler_age else "Adult"
+    elif state.travel_party == "group":
+        age_context = f"Ages {state.group_age_min}-{state.group_age_max}" if state.group_age_min else "Mixed Group"
+
     try:
         result = chain.invoke({
             "destination": state.destination,
@@ -58,6 +66,8 @@ def generate_itinerary(state):
             "end_date": state.end_date,
             "trip_purpose": state.trip_purpose or "vacation",
             "travel_party": state.travel_party or "solo",
+            "age_context": age_context,
+            "transportation_mode": state.transportation_mode or "public",
             "budget": state.budget or "Flexible",
             "hotels": hotels_str,
             "flights": flights_str

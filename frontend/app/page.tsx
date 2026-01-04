@@ -8,10 +8,16 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { format } from 'date-fns';
-
+import AirportAutocomplete from './components/AirportAutocomplete';
+import FlightCard from './components/FlightCard';
+import WeatherWidget from './components/WeatherWidget';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function HomePage() {
+  // Separate state for display values (Names) vs submitted values (IDs)
+  const [displayOrigin, setDisplayOrigin] = useState('');
+  const [displayDestination, setDisplayDestination] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -20,18 +26,88 @@ export default function HomePage() {
     startDate: '',
     endDate: '',
     tripPurpose: 'vacation',
-    travelParty: 'solo_male',
+    travelParty: 'solo', // 'solo' or 'group'
+    travelerAge: null as number | null,
+    groupAgeMin: null as number | null,
+    groupAgeMax: null as number | null,
+    transportationMode: 'public',
     bedrooms: 1,
     maxPrice: 200,
     minRating: 4.0,
     budget: 5000
   });
 
+  const [logs, setLogs] = useState<string[]>([]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setResults(null);
+    setLogs([]);
 
+    // 1. Start WebSocket connection for real-time logs
+    const ws = new WebSocket(`${API_URL.replace('http', 'ws')}/ws/chat`);
+
+    ws.onopen = () => {
+      console.log('Connected to WebSocket');
+      // Send initial data to start the graph (if your backend supports receiving it via WS)
+      // Note: Current backend implementation might expect HTTP POST to start, 
+      // but let's assume we want to just listen or if we modify backend to accept start via WS.
+      // Based on server.py, /ws/chat accepts text and runs the graph.
+
+      // Use IDs if available, else fallback to whatever user typed (display value)
+      const finalOrigin = formData.origin || displayOrigin;
+      const finalDest = formData.destination || displayDestination;
+
+      ws.send(JSON.stringify({
+        origin: finalOrigin,
+        destination: finalDest,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        trip_purpose: formData.tripPurpose,
+        travel_party: formData.travelParty,
+        traveler_age: formData.travelerAge,
+        group_age_min: formData.groupAgeMin,
+        group_age_max: formData.groupAgeMax,
+        transportation_mode: formData.transportationMode,
+        bedrooms: formData.bedrooms,
+        max_price: formData.maxPrice,
+        min_rating: formData.minRating,
+        budget: formData.budget
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        // It's a log/step update
+        setLogs(prev => [...prev, `Checking ${data.step}...`]);
+      } else if (data.type === 'complete' || data.itinerary) {
+        // It's the final result (server.py might need tweaks to send this structure exactly, 
+        // but let's assume standard graph output)
+        if (data.data) {
+          setResults(data.data); // If wrapped
+        } else {
+          setResults(data); // If direct state
+        }
+        ws.close();
+        setIsLoading(false);
+      } else if (data.type === 'error') {
+        console.error("WS Error:", data);
+        alert("Error during planning");
+        ws.close();
+        setIsLoading(false);
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error", err);
+      // Fallback to HTTP if WS fails
+      fallbackHttpPlan();
+    };
+  };
+
+  const fallbackHttpPlan = async () => {
     try {
       const response = await axios.post(`${API_URL}/plan`, {
         origin: formData.origin,
@@ -45,7 +121,6 @@ export default function HomePage() {
         min_rating: formData.minRating,
         budget: formData.budget
       });
-
       setResults(response.data);
     } catch (error) {
       console.error('Planning failed:', error);
@@ -96,32 +171,36 @@ export default function HomePage() {
             {/* Destination Row */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Plane className="inline mr-2" size={18} />
-                  From
-                </label>
-                <input
-                  type="text"
-                  value={formData.origin}
-                  onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
+                <AirportAutocomplete
+                  label="From"
+                  value={displayOrigin}
+                  onChange={(val) => {
+                    setDisplayOrigin(val);
+                    setFormData({ ...formData, origin: '' }); // Clear ID on manual type until selected
+                  }}
+                  onSelect={(suggestion) => {
+                    setDisplayOrigin(suggestion.name);
+                    setFormData({ ...formData, origin: suggestion.id }); // Store ID (e.g. SFO or /m/...)
+                  }}
                   placeholder="e.g., San Francisco, SFO"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
-                  required
+                  icon={Plane}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <MapPin className="inline mr-2" size={18} />
-                  To
-                </label>
-                <input
-                  type="text"
-                  value={formData.destination}
-                  onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+                <AirportAutocomplete
+                  label="To"
+                  value={displayDestination}
+                  onChange={(val) => {
+                    setDisplayDestination(val);
+                    setFormData({ ...formData, destination: '' });
+                  }}
+                  onSelect={(suggestion) => {
+                    setDisplayDestination(suggestion.name);
+                    setFormData({ ...formData, destination: suggestion.id });
+                  }}
                   placeholder="e.g., Paris, Tokyo"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
-                  required
+                  icon={MapPin}
                 />
               </div>
             </div>
@@ -129,7 +208,7 @@ export default function HomePage() {
             {/* Date Row */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   <Calendar className="inline mr-2" size={18} />
                   Departure Date
                 </label>
@@ -137,13 +216,13 @@ export default function HomePage() {
                   type="date"
                   value={formData.startDate}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   <Calendar className="inline mr-2" size={18} />
                   Return Date
                 </label>
@@ -151,7 +230,7 @@ export default function HomePage() {
                   type="date"
                   value={formData.endDate}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
                   required
                 />
               </div>
@@ -160,14 +239,14 @@ export default function HomePage() {
             {/* Trip Type Row */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   <Briefcase className="inline mr-2" size={18} />
                   Trip Purpose
                 </label>
                 <select
                   value={formData.tripPurpose}
                   onChange={(e) => setFormData({ ...formData, tripPurpose: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
                 >
                   <option value="vacation">🏝️ Vacation</option>
                   <option value="work">💼 Business Trip</option>
@@ -175,18 +254,73 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   <Users className="inline mr-2" size={18} />
                   Traveling As
                 </label>
                 <select
                   value={formData.travelParty}
                   onChange={(e) => setFormData({ ...formData, travelParty: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
                 >
-                  <option value="solo_male">👨 Solo Male</option>
-                  <option value="solo_female">👩 Solo Female</option>
+                  <option value="solo">👤 Solo Traveler</option>
                   <option value="group">👥 Group/Family</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Conditional Age & Transportation Row */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {formData.travelParty === 'solo' ? (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Your Age
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Your Age"
+                    value={formData.travelerAge || ''}
+                    onChange={(e) => setFormData({ ...formData, travelerAge: parseInt(e.target.value) })}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white placeholder-gray-400"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Min Age</label>
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={formData.groupAgeMin || ''}
+                      onChange={(e) => setFormData({ ...formData, groupAgeMin: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white placeholder-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Max Age</label>
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={formData.groupAgeMax || ''}
+                      onChange={(e) => setFormData({ ...formData, groupAgeMax: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Transportation Mode
+                </label>
+                <select
+                  value={formData.transportationMode}
+                  onChange={(e) => setFormData({ ...formData, transportationMode: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
+                >
+                  <option value="public">🚍 Public Transit</option>
+                  <option value="car">🚗 Rental/Own Car</option>
+                  <option value="walking">🚶 Walking/Biking</option>
                 </select>
               </div>
             </div>
@@ -194,7 +328,7 @@ export default function HomePage() {
             {/* Budget & Accommodation Row */}
             <div className="grid md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   <DollarSign className="inline mr-2" size={18} />
                   Total Budget ($)
                 </label>
@@ -204,12 +338,12 @@ export default function HomePage() {
                   onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) })}
                   min="500"
                   step="100"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   <Hotel className="inline mr-2" size={18} />
                   Max Price/Night ($)
                 </label>
@@ -219,12 +353,12 @@ export default function HomePage() {
                   onChange={(e) => setFormData({ ...formData, maxPrice: parseInt(e.target.value) })}
                   min="50"
                   step="10"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Bedrooms
                 </label>
                 <input
@@ -233,7 +367,7 @@ export default function HomePage() {
                   onChange={(e) => setFormData({ ...formData, bedrooms: parseInt(e.target.value) })}
                   min="1"
                   max="5"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none text-gray-800 bg-white"
                 />
               </div>
             </div>
@@ -249,7 +383,7 @@ export default function HomePage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 animate-spin" />
-                  Planning Your Perfect Trip...
+                  {logs.length > 0 ? logs[logs.length - 1] : "Planning Your Perfect Trip..."}
                 </>
               ) : (
                 <>
@@ -271,6 +405,23 @@ export default function HomePage() {
               transition={{ duration: 0.5 }}
               className="space-y-8"
             >
+              {/* Weather Widget */}
+              {results.weather_info ? (
+                <WeatherWidget weatherInfo={results.weather_info} />
+              ) : results.weather_summary ? (
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8 mb-8 transform hover:scale-[1.01] transition-transform">
+                  <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+                    <span className="mr-3 text-4xl">🌤️</span>
+                    Local Weather
+                  </h2>
+                  <div className="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-2xl p-6 border-l-8 border-blue-400">
+                    <p className="text-xl text-blue-900 font-medium leading-relaxed">
+                      {results.weather_summary}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
               {/* Hotels */}
               {results.accommodations && results.accommodations.length > 0 && (
                 <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8">
@@ -312,45 +463,44 @@ export default function HomePage() {
               {/* Flights */}
               {results.flights && results.flights.length > 0 && (
                 <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+                  <h2 className="text-3xl font-bold text-gray-800 mb-8 flex items-center">
                     <Plane className="mr-3 text-purple-600" />
                     Flight Options
                   </h2>
-                  <div className="space-y-4">
-                    {results.flights.slice(0, 5).map((flight: any, idx: number) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: -50 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-indigo-100 hover:border-indigo-300 transition-all"
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="font-bold text-lg text-gray-800">{flight.airline}</h3>
-                            <p className="text-gray-600">
-                              {flight.origin} → {flight.destination}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-purple-600">
-                              ${flight.price || 'N/A'}
-                            </p>
-                            {flight.url && (
-                              <a
-                                href={flight.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-purple-600 hover:text-purple-800"
-                              >
-                                Book Now →
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
+
+                  {/* Best Flights Section */}
+                  <div className="mb-10">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                      <Sparkles className="text-yellow-500 mr-2" size={20} />
+                      Best Value Flights
+                    </h3>
+                    <div className="space-y-6">
+                      {results.flights.filter((f: any) => f.type === 'Best').map((flight: any, idx: number) => (
+                        <FlightCard key={`best-${idx}`} flight={flight} idx={idx} isBest={true} />
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Other Flights Section */}
+                  {results.flights.some((f: any) => f.type === 'Other') && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-700 mb-4 ml-1">Other Options</h3>
+                      <div className="space-y-4">
+                        {results.flights.filter((f: any) => f.type === 'Other').map((flight: any, idx: number) => (
+                          <FlightCard key={`other-${idx}`} flight={flight} idx={idx} isBest={false} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fallback if no type defined (backward compatibility) */}
+                  {!results.flights.some((f: any) => f.type) && (
+                    <div className="space-y-4">
+                      {results.flights.map((flight: any, idx: number) => (
+                        <FlightCard key={`flight-${idx}`} flight={flight} idx={idx} isBest={idx < 1} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -367,11 +517,12 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-              )}
-            </motion.div>
+              )
+              }
+            </motion.div >
           )}
-        </AnimatePresence>
-      </div>
-    </div>
+        </AnimatePresence >
+      </div >
+    </div >
   );
 }

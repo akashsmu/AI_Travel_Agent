@@ -1,6 +1,6 @@
 
 from dotenv import load_dotenv
-from singlestore_client import get_conn
+from database.singlestore_client import get_conn
 
 # Load environment variables
 load_dotenv()
@@ -62,6 +62,8 @@ def init_db():
             end_date DATE,
             trip_purpose VARCHAR(50),
             travel_party VARCHAR(50),
+            age_info VARCHAR(100), -- Stores "25" or "18-30" range
+            transportation_mode VARCHAR(50),
             budget FLOAT,
             itinerary_text LONGTEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
