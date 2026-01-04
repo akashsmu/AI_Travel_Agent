@@ -99,6 +99,8 @@ async def plan_trip(req: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+from database.ops import save_trip_plan, find_cached_trip
+
 @app.websocket("/ws/chat")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -107,6 +109,37 @@ async def websocket_endpoint(websocket: WebSocket):
         data = await websocket.receive_text()
         req_data = json.loads(data)
         
+        # 1. CHECK CACHE logic
+        cache_params = {
+            "origin": req_data.get("origin"),
+            "destination": req_data.get("destination"),
+            "start_date": req_data.get("start_date"),
+            "end_date": req_data.get("end_date"),
+            "trip_purpose": req_data.get("trip_purpose")
+        }
+        
+        cached_result = await asyncio.to_thread(find_cached_trip, cache_params)
+        
+        if cached_result:
+            # CACHE HIT: Send immediately
+            logger.info("⚡️ Serving from cache")
+            await websocket.send_text(json.dumps({
+                "type": "update", 
+                "step": "cache",
+                "message": "⚡️ Found a recent matching itinerary! Loading from cache..."
+            }))
+            
+            # Simulate a small delay for UX
+            await asyncio.sleep(0.5)
+
+            await websocket.send_text(json.dumps({
+                "type": "complete",
+                "message": "Planning complete (Cached)!",
+                "data": cached_result
+            }))
+            return 
+        
+        # 2. NO CACHE: Run Agents
         initial_state = TravelState(
             origin=req_data.get("origin"),
             destination=req_data.get("destination"),
@@ -128,27 +161,43 @@ async def websocket_endpoint(websocket: WebSocket):
         
         # Keep track of the final state to send at the end
         final_state_data = {}
-
-        # Stream events from graph
+        # Also keep a real TravelState obj if possible, or construct one at end for saving
+        # Since we are iterating events, we update `final_state_data` dictionary.
+        
+        # We need the accumulation of state because streaming gives partial updates.
+        # Ideally, we should get the full state at the end.
+        
         async for event in graph.astream(initial_state):
              for key, value in event.items():
                 if key == "__end__":
                     continue
                 
-                # Update our tracking of the state
+                # Update our tracking of the state (dict merge)
                 if isinstance(value, dict):
                     final_state_data.update(value)
-                elif isinstance(value, TravelState): 
-                     # Should typically be a dict from astream, but just in case
-                     final_state_data.update(value.model_dump())
-
+                elif hasattr(value, "dict"): 
+                     final_state_data.update(value.dict())
+                
                 # Send update to client
                 await websocket.send_text(json.dumps({
                     "type": "update",
                     "step": key,
-                    "data": str(value) # simplified for logs
+                    "message": f"Completed {key}"
                 }))
         
+        # 3. SAVE to DB
+        # Re-construct TravelState from accumulated dict to safely pass to save_trip_plan
+        # (save_trip_plan expects TravelState object)
+        try:
+             # Merge initial params with results
+             full_state_dict = initial_state.dict()
+             full_state_dict.update(final_state_data)
+             final_state_obj = TravelState(**full_state_dict)
+             
+             await asyncio.to_thread(save_trip_plan, final_state_obj)
+        except Exception as save_err:
+             logger.error(f"Failed to save plan: {save_err}")
+
         # Send complete message with full final data for rendering
         await websocket.send_text(json.dumps({
             "type": "complete", 
@@ -157,6 +206,7 @@ async def websocket_endpoint(websocket: WebSocket):
         }))
         
     except Exception as e:
+        logger.error(f"WebSocket Error: {e}")
         print(f"WebSocket Error: {e}")
         await websocket.close()
 

@@ -15,27 +15,56 @@ def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    # 1. Flights Table
-    # Added: created_at, unique constraint logic (optional but good for data quality)
+    # 1. Trip Plans (Parent Table)
+    cur.execute("DROP TABLE IF EXISTS trip_plans")
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS flights (
+        CREATE TABLE trip_plans (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            -- Search Parameters
+            origin VARCHAR(255),
+            destination VARCHAR(255),
+            start_date DATE,
+            end_date DATE,
+            trip_purpose VARCHAR(50),
+            travel_party VARCHAR(50),
+            traveler_age INT,
+            group_age_min INT,
+            group_age_max INT,
+            transportation_mode VARCHAR(50),
+            budget FLOAT,
+            bedrooms INT,
+            max_price_per_night FLOAT,
+            min_rating FLOAT,
+            
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY cache_idx (origin, destination, start_date, end_date)
+        );
+    """)
+
+    # 2. Flights (Child)
+    cur.execute("DROP TABLE IF EXISTS flights")
+    cur.execute("""
+        CREATE TABLE flights (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            trip_id INT,
             airline VARCHAR(255),
             origin VARCHAR(10),
             destination VARCHAR(10),
             price FLOAT,
             url TEXT,
-            details JSON,
+            details JSON, -- Stores rich data like flight number, extensions
             search_id VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            KEY(origin, destination)
+            KEY(trip_id)
         );
     """)
 
-    # 2. Accommodations Table
+    # 3. Accommodations (Child)
+    cur.execute("DROP TABLE IF EXISTS accommodations")
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS accommodations (
+        CREATE TABLE accommodations (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            trip_id INT,
             name VARCHAR(255),
             city VARCHAR(255),
             country VARCHAR(255),
@@ -47,26 +76,32 @@ def init_db():
             description TEXT,
             search_id VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            KEY(city)
+            KEY(trip_id)
         );
     """)
     
-    # 3. Trip Plans Table
-    # To store the generated plans and chat history
+    # 4. Itineraries (Child)
+    cur.execute("DROP TABLE IF EXISTS itineraries")
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS trip_plans (
+        CREATE TABLE itineraries (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            origin VARCHAR(255),
-            destination VARCHAR(255),
-            start_date DATE,
-            end_date DATE,
-            trip_purpose VARCHAR(50),
-            travel_party VARCHAR(50),
-            age_info VARCHAR(100), -- Stores "25" or "18-30" range
-            transportation_mode VARCHAR(50),
-            budget FLOAT,
+            trip_id INT,
             itinerary_text LONGTEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY(trip_id)
+        );
+    """)
+
+    # 5. Weather (Child)
+    cur.execute("DROP TABLE IF EXISTS weather")
+    cur.execute("""
+        CREATE TABLE weather (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            trip_id INT,
+            summary TEXT,
+            weather_info JSON, -- Structured forecast
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY(trip_id)
         );
     """)
 
