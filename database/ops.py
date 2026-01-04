@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+from typing import Union, List, Dict, Any
 from database.singlestore_client import get_conn
 from state import TravelState
 from utils.logger import setup_logger
@@ -88,7 +89,7 @@ def save_trip_plan(state: TravelState):
     except Exception as e:
         logger.error(f"❌ Failed to save trip plan: {e}")
 
-def find_cached_trip(params: dict):
+def find_cached_trip(params: Union[dict, TravelState]) -> Union[dict, None]:
     """
     Attempts to find a recent matching trip plan (Normalized).
     Returns None if no cache hit.
@@ -97,6 +98,14 @@ def find_cached_trip(params: dict):
         conn = get_conn()
         cur = conn.cursor()
         
+        # Handle both dict and TravelState (Pydantic model)
+        if hasattr(params, "dict"):
+            p = params.dict()
+        elif hasattr(params, "model_dump"): # Pydantic v2
+            p = params.model_dump()
+        else:
+            p = params
+
         # 1. Find Trip ID
         query = """
             SELECT id, created_at
@@ -112,9 +121,9 @@ def find_cached_trip(params: dict):
             LIMIT 1
         """
         cur.execute(query, (
-            params.get("origin"), params.get("destination"), 
-            params.get("start_date"), params.get("end_date"), 
-            params.get("trip_purpose")
+            p.get("origin"), p.get("destination"), 
+            p.get("start_date"), p.get("end_date"), 
+            p.get("trip_purpose")
         ))
         row = cur.fetchone()
         
@@ -138,27 +147,22 @@ def find_cached_trip(params: dict):
         weather_summary = weather_row[0] if weather_row else None
         weather_info = json.loads(weather_row[1]) if weather_row and weather_row[1] else None
         
-        # Flights (Reconstruct list of dicts)
-        # We stored full object in 'details', but let's just use what we have or parse details if needed.
-        # Ideally, we reconstruct from columns + details.
+        # Flights 
         cur.execute("SELECT details FROM flights WHERE trip_id = %s", (trip_id,))
         flight_rows = cur.fetchall()
         flights = [json.loads(r[0]) for r in flight_rows]
         
         # Accommodations
-        # Reconstruct object
         cur.execute("""
             SELECT name, city, country, price_per_night, rating, bedrooms, url, image_url, description 
             FROM accommodations WHERE trip_id = %s
         """, (trip_id,))
         
-        # Map back to dict
         columns = [col[0] for col in cur.description]
         hotel_rows = cur.fetchall()
         hotels = []
         for r in hotel_rows:
             h = dict(zip(columns, r))
-            # fix keys for frontend compatibility
             h['price'] = h['price_per_night'] 
             h['image'] = h['image_url']
             hotels.append(h)

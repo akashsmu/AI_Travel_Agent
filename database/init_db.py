@@ -19,7 +19,7 @@ def init_db():
     cur.execute("DROP TABLE IF EXISTS trip_plans")
     cur.execute("""
         CREATE TABLE trip_plans (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
             -- Search Parameters
             origin VARCHAR(255),
             destination VARCHAR(255),
@@ -45,8 +45,8 @@ def init_db():
     cur.execute("DROP TABLE IF EXISTS flights")
     cur.execute("""
         CREATE TABLE flights (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            trip_id INT,
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
             airline VARCHAR(255),
             origin VARCHAR(10),
             destination VARCHAR(10),
@@ -63,8 +63,8 @@ def init_db():
     cur.execute("DROP TABLE IF EXISTS accommodations")
     cur.execute("""
         CREATE TABLE accommodations (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            trip_id INT,
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
             name VARCHAR(255),
             city VARCHAR(255),
             country VARCHAR(255),
@@ -84,8 +84,8 @@ def init_db():
     cur.execute("DROP TABLE IF EXISTS itineraries")
     cur.execute("""
         CREATE TABLE itineraries (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            trip_id INT,
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
             itinerary_text LONGTEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             KEY(trip_id)
@@ -96,8 +96,8 @@ def init_db():
     cur.execute("DROP TABLE IF EXISTS weather")
     cur.execute("""
         CREATE TABLE weather (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            trip_id INT,
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
             summary TEXT,
             weather_info JSON, -- Structured forecast
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

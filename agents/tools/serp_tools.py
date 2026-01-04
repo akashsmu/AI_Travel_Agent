@@ -1,17 +1,19 @@
-
 import os
+import json
+from typing import List, Dict, Any
 from serpapi import GoogleSearch
 from dotenv import load_dotenv
-
+from utils.logger import setup_logger
 
 load_dotenv()
+logger = setup_logger()
 
-def search_google_flights(full_state):
+def search_google_flights(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Search for flights using SerpAPI Google Flights engine.
     """
     if not os.getenv("SERPAPI_KEY"):
-        print("SERPAPI_KEY not found")
+        logger.error("SERPAPI_KEY not found in environment")
         return []
 
     # Determine trip type: 1 = Round Trip, 2 = One Way
@@ -20,9 +22,30 @@ def search_google_flights(full_state):
     if not return_date:
         trip_type = 2
 
-    # CRITICAL: Use ID (e.g. SFO, /m/0vzm) for flights if available, else Name
+    # CRITICAL: Use ID (e.g. SFO, /m/0vzm) for flights if available, else name
     dep_id = full_state.get("origin_id") or full_state.get("origin", "")
     arr_id = full_state.get("destination_id") or full_state.get("destination", "")
+
+    # SELF-CORRECTION: If valid ID format (3 chars uppercase or starts with /m/), use it.
+    # Otherwise, try to resolve it via autocomplete.
+    def is_valid_id(val):
+        return val and ((len(val) == 3 and val.isupper()) or val.startswith("/m/"))
+
+    if dep_id and not is_valid_id(dep_id):
+        logger.warning(f"⚠️ Invalid Departure ID '{dep_id}'. Attempting resolution...")
+        suggestions = search_google_flights_autocomplete(dep_id)
+        if suggestions:
+            new_id = suggestions[0].get("id")
+            logger.info(f"✅ Resolved '{dep_id}' -> '{new_id}'")
+            dep_id = new_id
+    
+    if arr_id and not is_valid_id(arr_id):
+        logger.warning(f"⚠️ Invalid Arrival ID '{arr_id}'. Attempting resolution...")
+        suggestions = search_google_flights_autocomplete(arr_id)
+        if suggestions:
+            new_id = suggestions[0].get("id")
+            logger.info(f"✅ Resolved '{arr_id}' -> '{new_id}'")
+            arr_id = new_id
 
     params = {
         "engine": "google_flights",
@@ -36,29 +59,57 @@ def search_google_flights(full_state):
         "api_key": os.getenv("SERPAPI_KEY")
     }
     
-    print(f"✈️ FLIGHT PARAMS: {params}") # Log inputs
-
-    # Basic validation
-    if not params["departure_id"] or not params["arrival_id"]:
-        print("❌ Missing flight params")
-        return []
+    logger.info(f"✈️ FLIGHT SEARCH PARAMS: {params}")
 
     try:
         search = GoogleSearch(params)
         results = search.get_dict()
         
-        # ... processing logic ...
+        # EXTENSIVE LOGGING
+        logger.info(f"✈️ RAW FLIGHT RESULTS: {json.dumps(results, indent=2)}")
+
+        if "error" in results:
+            logger.error(f"SerpAPI Flights Error: {results['error']}")
+            return []
+
+        search_url = results.get("search_metadata", {}).get("google_flights_url", "https://www.google.com/travel/flights")
+        flights_data = []
         
+        def process_flight_list(key, f_type):
+            if key in results:
+                for flight in results[key]:
+                    first_slice = flight.get("flights", [{}])[0]
+                    flights_data.append({
+                        "airline": first_slice.get("airline", "Unknown"),
+                        "airline_logo": first_slice.get("airline_logo"),
+                        "flight_number": first_slice.get("flight_number"),
+                        "airplane": first_slice.get("airplane"),
+                        "travel_class": first_slice.get("travel_class"),
+                        "origin": dep_id,
+                        "destination": arr_id,
+                        "price": flight.get("price", 0),
+                        "duration": flight.get("total_duration", "N/A"),
+                        "stops": "Nonstop" if len(flight.get("layovers", [])) == 0 else f"{len(flight.get('layovers', []))} stops",
+                        "layovers": flight.get("layovers", []),
+                        "extensions": flight.get("extensions", []),
+                        "url": search_url, 
+                        "type": f_type,
+                        "details": flight 
+                    })
+
+        process_flight_list("best_flights", "Best")
+        process_flight_list("other_flights", "Other")
+        
+        return flights_data
     except Exception as e:
-        print(f"SerpAPI Flights Error: {e}")
+        logger.error(f"❌ SerpAPI Flights Exception: {e}")
         return []
 
-def search_google_flights_autocomplete(query):
+def search_google_flights_autocomplete(query: str) -> List[Dict[str, Any]]:
     """
-    Autocomplete for airports using SerpAPI Google Flights Autocomplete engine.
+    Autocomplete for airports using SerpAPI.
     """
     if not os.getenv("SERPAPI_KEY"):
-        print("SERPAPI_KEY not found")
         return []
 
     params = {
@@ -76,8 +127,6 @@ def search_google_flights_autocomplete(query):
         suggestions = []
         if "suggestions" in results:
             for item in results["suggestions"]:
-                 # Top level (City or Region)
-                 # Only use ID as 'code' if it looks like an IATA code (3 chars), else fallback to Name for display
                  raw_id = item.get("id", "")
                  display_code = raw_id if len(raw_id) == 3 and raw_id.isupper() else None
                  
@@ -88,12 +137,11 @@ def search_google_flights_autocomplete(query):
                      "type": "City"
                  })
                  
-                 # Nested airports
                  if "airports" in item:
                      for airport in item["airports"]:
                          air_id = airport.get("id", "")
                          suggestions.append({
-                             "id": air_id, # e.g. "JFK"
+                             "id": air_id,
                              "name": f"{airport.get('name')} ({air_id})",
                              "code": air_id,
                              "type": "Airport"
@@ -101,19 +149,17 @@ def search_google_flights_autocomplete(query):
                          
         return suggestions[:10]
     except Exception as e:
-        print(f"SerpAPI Autocomplete Error: {e}")
+        logger.error(f"SerpAPI Autocomplete Error: {e}")
         return []
 
-def search_google_hotels(full_state):
+def search_google_hotels(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Search for hotels using SerpAPI Google Hotels engine.
     """
     if not os.getenv("SERPAPI_KEY"):
-        print("SERPAPI_KEY not found")
         return []
 
-    # CRITICAL: Use Name (e.g. Austin, TX) for Hotels, NOT ID
-    # Frontend sends Name in "destination" and ID in "destination_id"
+    # Use Name (e.g. Austin, TX) for Hotels
     dest_query = full_state.get("destination", "")
     
     params = {
@@ -128,30 +174,33 @@ def search_google_hotels(full_state):
         "api_key": os.getenv("SERPAPI_KEY")
     }
     
-    print(f"🏨 HOTEL PARAMS: {params}") # Log inputs
+    logger.info(f"🏨 HOTEL SEARCH PARAMS: {params}")
 
     try:
         search = GoogleSearch(params)
         results = search.get_dict()
         
+        # EXTENSIVE LOGGING
+        logger.info(f"🏨 RAW HOTEL RESULTS: {json.dumps(results, indent=2)}")
+
+        if "error" in results:
+            logger.error(f"SerpAPI Hotels Error: {results['error']}")
+            return []
+        
         hotels = []
         if "properties" in results:
             for prop in results["properties"]:
-                # Filter by simple constraints if possible, or just return top
                 price_val = 0
                 if prop.get("rate_per_night") and "lowest" in prop["rate_per_night"]:
                     price_str = prop["rate_per_night"]["lowest"]
-                    # Clean string "$120" -> 120
                     price_val = float(price_str.replace('$', '').replace(',', ''))
                 
-                rating = prop.get("overall_rating", 0.0)
-
                 hotels.append({
                     "name": prop.get("name"),
-                    "city": full_state.get("destination"),
-                    "country": "", # SerpAPI doesn't always explicit this in list
+                    "city": dest_query,
+                    "country": "", 
                     "price": price_val,
-                    "rating": rating,
+                    "rating": prop.get("overall_rating", 0.0),
                     "url": prop.get("link"),
                     "image": prop.get("images", [{}])[0].get("thumbnail") if prop.get("images") else None,
                     "description": prop.get("description")
@@ -159,5 +208,5 @@ def search_google_hotels(full_state):
         
         return hotels[:10]
     except Exception as e:
-        print(f"SerpAPI Hotels Error: {e}")
+        logger.error(f"❌ SerpAPI Hotels Exception: {e}")
         return []

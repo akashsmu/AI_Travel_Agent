@@ -1,8 +1,11 @@
 import requests
+import json
 import os
 from dotenv import load_dotenv
+from utils.logger import setup_logger
 
 load_dotenv()
+logger = setup_logger()
 
 def fetch_weather(state):
     """Fetch weather using OpenWeatherMap based on destination."""
@@ -15,7 +18,12 @@ def fetch_weather(state):
     # 1. Get coordinates
     try:
         geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={state.destination}&limit=1&appid={api_key}"
-        geo_data = requests.get(geo_url).json()
+        logger.info(f"📍 GEOCODING PARAMS: {state.destination}")
+        
+        resp = requests.get(geo_url)
+        geo_data = resp.json()
+        
+        logger.info(f"📍 RAW GEO DATA: {json.dumps(geo_data, indent=2)}")
         
         if not geo_data:
             state.weather_summary = f"Could not find coordinates for {state.destination}."
@@ -25,26 +33,28 @@ def fetch_weather(state):
         lon = geo_data[0]["lon"]
 
     except Exception as e:
-        print(f"Weather Geocoding Error: {e}")
+        logger.error(f"❌ Weather Geocoding Error: {e}")
         state.weather_summary = "Weather unavailable."
         return state
 
     # 2. Get forecast (5 day / 3 hour)
-    # Using metric units for Celsius
     weather_url = (
         f"https://api.openweathermap.org/data/2.5/forecast?"
         f"lat={lat}&lon={lon}&units=metric&appid={api_key}"
     )
 
     try:
-        data = requests.get(weather_url).json()
+        logger.info(f"🌤️ WEATHER PARAMS: lat={lat}, lon={lon}")
+        resp = requests.get(weather_url)
+        data = resp.json()
+        
+        logger.info(f"🌤️ RAW WEATHER DATA: {json.dumps(data, indent=2)}")
         
         if "list" not in data:
             state.weather_summary = "Weather data format error."
             return state
 
-        # Process standard 5-day forecast (grouped by date)
-        # OpenWeather returns list of 3-hour segments
+        # ... (rest of processing remains same) ...
         from collections import defaultdict
         from datetime import datetime
         
@@ -54,25 +64,21 @@ def fetch_weather(state):
             dt_txt = item.get("dt_txt", "")
             if not dt_txt: continue
             
-            # extract date YYYY-MM-DD
             date_str = dt_txt.split(" ")[0]
             temp = item["main"]["temp"]
-            desc = item["weather"][0]["main"] # e.g. Rain, Clouds, Clear
+            desc = item["weather"][0]["main"]
             
             daily_forecasts[date_str]["temps"].append(temp)
             daily_forecasts[date_str]["weather"].append(desc)
             
-        # Build structured weather info
         processed_weather = []
         full_summary = []
         
         for date, info in sorted(daily_forecasts.items()):
             min_t = min(info["temps"])
             max_t = max(info["temps"])
-            # Most common weather condition for that day
             main_weather = max(set(info["weather"]), key=info["weather"].count)
             
-            # Format day
             try:
                 day_name = datetime.strptime(date, "%Y-%m-%d").strftime("%A, %b %d")
             except:
@@ -93,10 +99,10 @@ def fetch_weather(state):
             "location": state.destination,
             "forecast": processed_weather
         }
-        state.weather_summary = " | ".join(full_summary[:5]) # Keep summary for compatibility
+        state.weather_summary = " | ".join(full_summary[:5])
 
     except Exception as e:
-        print(f"Weather API Error: {e}")
+        logger.error(f"❌ Weather API Error: {e}")
         state.weather_summary = "Weather currently unavailable."
 
     return state
