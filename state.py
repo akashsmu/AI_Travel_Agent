@@ -4,6 +4,8 @@ from pydantic import BaseModel
 class TravelState(BaseModel):
     origin: Optional[str] = None
     destination: Optional[str] = None
+    origin_id: Optional[str] = None # For Flight API (IATA or KG ID)
+    destination_id: Optional[str] = None # For Flight API (IATA or KG ID)
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 

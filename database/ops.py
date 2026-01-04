@@ -88,7 +88,7 @@ def save_trip_plan(state: TravelState):
     except Exception as e:
         logger.error(f"❌ Failed to save trip plan: {e}")
 
-def find_cached_trip(params: dict) -> dict | None:
+def find_cached_trip(params: dict):
     """
     Attempts to find a recent matching trip plan (Normalized).
     Returns None if no cache hit.

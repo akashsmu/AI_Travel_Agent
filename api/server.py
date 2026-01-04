@@ -140,9 +140,13 @@ async def websocket_endpoint(websocket: WebSocket):
             return 
         
         # 2. NO CACHE: Run Agents
+        logger.info(f"🚀 Starting plan for: {req_data.get('origin')} -> {req_data.get('destination')}")
+        
         initial_state = TravelState(
             origin=req_data.get("origin"),
             destination=req_data.get("destination"),
+            origin_id=req_data.get("origin_id"),
+            destination_id=req_data.get("destination_id"),
             start_date=req_data.get("start_date"),
             end_date=req_data.get("end_date"),
             bedrooms=req_data.get("bedrooms", 1),

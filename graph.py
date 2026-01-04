@@ -7,7 +7,7 @@ from agents.recommend_agent import recommend_hotels
 from agents.flights_agent import recommend_flights
 from agents.flight_api_agent import fetch_flights_from_api
 from agents.itinerary_agent import generate_itinerary
-from database.cache import check_cache
+from database.ops import find_cached_trip as check_cache
 from database.store_results import store_results
 
 

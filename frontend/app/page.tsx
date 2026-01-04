@@ -56,24 +56,23 @@ export default function HomePage() {
       // Based on server.py, /ws/chat accepts text and runs the graph.
 
       // Use IDs if available, else fallback to whatever user typed (display value)
-      const finalOrigin = formData.origin || displayOrigin;
-      const finalDest = formData.destination || displayDestination;
-
       ws.send(JSON.stringify({
-        origin: finalOrigin,
-        destination: finalDest,
+        origin: displayOrigin, // Send Name for Weather/Hotels/LLM
+        destination: displayDestination, // Send Name 
+        origin_id: formData.origin, // Send ID for Flights
+        destination_id: formData.destination, // Send ID for Flights
         start_date: formData.startDate,
         end_date: formData.endDate,
         trip_purpose: formData.tripPurpose,
         travel_party: formData.travelParty,
-        traveler_age: formData.travelerAge,
-        group_age_min: formData.groupAgeMin,
-        group_age_max: formData.groupAgeMax,
+        traveler_age: formData.travelerAge ? parseInt(formData.travelerAge as any) : null,
+        group_age_min: formData.groupAgeMin ? parseInt(formData.groupAgeMin as any) : null,
+        group_age_max: formData.groupAgeMax ? parseInt(formData.groupAgeMax as any) : null,
         transportation_mode: formData.transportationMode,
+        budget: formData.budget ? parseFloat(formData.budget as any) : null,
         bedrooms: formData.bedrooms,
         max_price: formData.maxPrice,
-        min_rating: formData.minRating,
-        budget: formData.budget
+        min_rating: formData.minRating
       }));
     };
 

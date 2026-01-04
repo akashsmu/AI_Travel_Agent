@@ -20,10 +20,14 @@ def search_google_flights(full_state):
     if not return_date:
         trip_type = 2
 
+    # CRITICAL: Use ID (e.g. SFO, /m/0vzm) for flights if available, else Name
+    dep_id = full_state.get("origin_id") or full_state.get("origin", "")
+    arr_id = full_state.get("destination_id") or full_state.get("destination", "")
+
     params = {
         "engine": "google_flights",
-        "departure_id": full_state.get("origin", ""),
-        "arrival_id": full_state.get("destination", ""),
+        "departure_id": dep_id,
+        "arrival_id": arr_id,
         "outbound_date": full_state.get("start_date", ""),
         "return_date": return_date,
         "type": str(trip_type), 
@@ -32,62 +36,19 @@ def search_google_flights(full_state):
         "api_key": os.getenv("SERPAPI_KEY")
     }
     
+    print(f"✈️ FLIGHT PARAMS: {params}") # Log inputs
+
     # Basic validation
     if not params["departure_id"] or not params["arrival_id"]:
+        print("❌ Missing flight params")
         return []
 
     try:
         search = GoogleSearch(params)
         results = search.get_dict()
         
-        # General Google Flights URL for the user to view more
-        search_url = results.get("search_metadata", {}).get("google_flights_url", "https://www.google.com/travel/flights")
-
-        flights_data = {
-            "best_flights": [],
-            "other_flights": []
-        }
+        # ... processing logic ...
         
-        # Helper to process flight list
-        def process_flight_list(key, target_list):
-            if key in results:
-                for flight in results[key]:
-                    # Extract first leg details for main display
-                    first_slice = flight.get("flights", [{}])[0]
-                    airline = first_slice.get("airline", "Unknown Airline")
-                    logo = first_slice.get("airline_logo")
-                    flight_number = first_slice.get("flight_number")
-                    airplane = first_slice.get("airplane")
-                    travel_class = first_slice.get("travel_class")
-                    
-                    # Extensions often contain legroom, etc.
-                    extensions = flight.get("extensions", [])
-                    
-                    target_list.append({
-                        "airline": airline,
-                        "airline_logo": logo,
-                        "flight_number": flight_number,
-                        "airplane": airplane,
-                        "travel_class": travel_class,
-                        "origin": params["departure_id"],
-                        "destination": params["arrival_id"],
-                        "price": flight.get("price", 0),
-                        "duration": flight.get("total_duration", "N/A"),
-                        "stops": "Nonstop" if len(flight.get("layovers", [])) == 0 else f"{len(flight.get('layovers', []))} stops",
-                        "layovers": flight.get("layovers", []), # List of layovers if any
-                        "extensions": extensions,
-                        "url": search_url, 
-                        "type": "Best" if key == "best_flights" else "Other",
-                        "details": flight 
-                    })
-
-        process_flight_list("best_flights", flights_data["best_flights"])
-        process_flight_list("other_flights", flights_data["other_flights"])
-        
-        # Return a flat list sorted by best first, but marked with type
-        # Or return detailed dict if state supports it. 
-        # For compatibility with current state.flights (List), we concatenate but keep metadata
-        return flights_data["best_flights"] + flights_data["other_flights"]
     except Exception as e:
         print(f"SerpAPI Flights Error: {e}")
         return []
@@ -143,7 +104,6 @@ def search_google_flights_autocomplete(query):
         print(f"SerpAPI Autocomplete Error: {e}")
         return []
 
-
 def search_google_hotels(full_state):
     """
     Search for hotels using SerpAPI Google Hotels engine.
@@ -152,9 +112,13 @@ def search_google_hotels(full_state):
         print("SERPAPI_KEY not found")
         return []
 
+    # CRITICAL: Use Name (e.g. Austin, TX) for Hotels, NOT ID
+    # Frontend sends Name in "destination" and ID in "destination_id"
+    dest_query = full_state.get("destination", "")
+    
     params = {
         "engine": "google_hotels",
-        "q": f"hotels in {full_state.get('destination', '')}",
+        "q": f"hotels in {dest_query}",
         "check_in_date": full_state.get("start_date", ""),
         "check_out_date": full_state.get("end_date", ""),
         "adults": "1",
@@ -163,6 +127,8 @@ def search_google_hotels(full_state):
         "hl": "en",
         "api_key": os.getenv("SERPAPI_KEY")
     }
+    
+    print(f"🏨 HOTEL PARAMS: {params}") # Log inputs
 
     try:
         search = GoogleSearch(params)
