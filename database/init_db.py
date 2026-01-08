@@ -23,6 +23,8 @@ def init_db():
             -- Search Parameters
             origin VARCHAR(255),
             destination VARCHAR(255),
+            origin_city VARCHAR(255),
+            destination_city VARCHAR(255),
             start_date DATE,
             end_date DATE,
             trip_purpose VARCHAR(50),

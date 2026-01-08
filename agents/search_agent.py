@@ -8,7 +8,8 @@ def live_search(state):
     """
     Search for accommodations using SerpAPI (Google Hotels).
     """
-    logger.info(f"🔎 Searching hotels for {state.destination}...")
+    dest_query = state.destination_city or state.destination or ""
+    logger.info(f"🔎 Searching hotels for {dest_query}...")
     hotels = search_google_hotels(state.model_dump())
     
     if hotels:

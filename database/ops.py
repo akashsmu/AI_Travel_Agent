@@ -18,14 +18,14 @@ def save_trip_plan(state: TravelState):
         # 1. Insert Parent Trip Plan
         query_plan = """
             INSERT INTO trip_plans (
-                origin, destination, start_date, end_date, 
+                origin, destination, origin_city, destination_city, start_date, end_date, 
                 trip_purpose, travel_party, traveler_age, 
                 group_age_min, group_age_max, transportation_mode, 
                 budget, bedrooms, max_price_per_night, min_rating
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         values_plan = (
-            state.origin, state.destination, state.start_date, state.end_date,
+            state.origin, state.destination, state.origin_city, state.destination_city, state.start_date, state.end_date,
             state.trip_purpose, state.travel_party, state.traveler_age,
             state.group_age_min, state.group_age_max, state.transportation_mode,
             state.budget, state.bedrooms, state.max_price_per_night, state.min_rating
@@ -108,7 +108,7 @@ def find_cached_trip(params: Union[dict, TravelState]) -> Union[dict, None]:
 
         # 1. Find Trip ID
         query = """
-            SELECT id, created_at
+            SELECT id, created_at, origin_city, destination_city
             FROM trip_plans
             WHERE 
                 origin = %s 
@@ -170,6 +170,8 @@ def find_cached_trip(params: Union[dict, TravelState]) -> Union[dict, None]:
         conn.close()
 
         return {
+            "origin_city": row[2],
+            "destination_city": row[3],
             "weather_info": weather_info,
             "weather_summary": weather_summary,
             "flights": flights,

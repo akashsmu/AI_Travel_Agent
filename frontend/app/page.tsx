@@ -23,6 +23,8 @@ export default function HomePage() {
   const [formData, setFormData] = useState({
     origin: '',
     destination: '',
+    originCity: '',
+    destinationCity: '',
     startDate: '',
     endDate: '',
     tripPurpose: 'vacation',
@@ -61,6 +63,8 @@ export default function HomePage() {
         destination: displayDestination, // Send Name 
         origin_id: formData.origin, // Send ID for Flights
         destination_id: formData.destination, // Send ID for Flights
+        origin_city: formData.originCity, // New JSON field
+        destination_city: formData.destinationCity, // New JSON field
         start_date: formData.startDate,
         end_date: formData.endDate,
         trip_purpose: formData.tripPurpose,
@@ -175,11 +179,11 @@ export default function HomePage() {
                   value={displayOrigin}
                   onChange={(val) => {
                     setDisplayOrigin(val);
-                    setFormData({ ...formData, origin: '' }); // Clear ID on manual type until selected
+                    setFormData({ ...formData, origin: '', originCity: '' }); // Clear ID and City on manual type
                   }}
                   onSelect={(suggestion) => {
                     setDisplayOrigin(suggestion.name);
-                    setFormData({ ...formData, origin: suggestion.id }); // Store ID (e.g. SFO or /m/...)
+                    setFormData({ ...formData, origin: suggestion.id, originCity: suggestion.city_name || '' }); // Store ID and City
                   }}
                   placeholder="e.g., San Francisco, SFO"
                   icon={Plane}
@@ -192,11 +196,11 @@ export default function HomePage() {
                   value={displayDestination}
                   onChange={(val) => {
                     setDisplayDestination(val);
-                    setFormData({ ...formData, destination: '' });
+                    setFormData({ ...formData, destination: '', destinationCity: '' });
                   }}
                   onSelect={(suggestion) => {
                     setDisplayDestination(suggestion.name);
-                    setFormData({ ...formData, destination: suggestion.id });
+                    setFormData({ ...formData, destination: suggestion.id, destinationCity: suggestion.city_name || '' });
                   }}
                   placeholder="e.g., Paris, Tokyo"
                   icon={MapPin}

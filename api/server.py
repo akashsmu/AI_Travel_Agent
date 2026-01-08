@@ -41,8 +41,10 @@ app.add_middleware(
 graph = build_graph()
 
 class ChatRequest(BaseModel):
-    origin: str
-    destination: str
+    origin_id: Optional[str] = None
+    destination_id: Optional[str] = None
+    origin_city: Optional[str] = None
+    destination_city: Optional[str] = None
     start_date: str
     end_date: str
     bedrooms: Optional[int] = 1
@@ -76,6 +78,10 @@ async def plan_trip(req: ChatRequest):
     initial_state = TravelState(
         origin=req.origin,
         destination=req.destination,
+        origin_id=req.origin_id,
+        destination_id=req.destination_id,
+        origin_city=req.origin_city,
+        destination_city=req.destination_city,
         start_date=req.start_date,
         end_date=req.end_date,
         bedrooms=req.bedrooms,
@@ -147,6 +153,8 @@ async def websocket_endpoint(websocket: WebSocket):
             destination=req_data.get("destination"),
             origin_id=req_data.get("origin_id"),
             destination_id=req_data.get("destination_id"),
+            origin_city=req_data.get("origin_city"),
+            destination_city=req_data.get("destination_city"),
             start_date=req_data.get("start_date"),
             end_date=req_data.get("end_date"),
             bedrooms=req_data.get("bedrooms", 1),

@@ -6,6 +6,8 @@ class TravelState(BaseModel):
     destination: Optional[str] = None
     origin_id: Optional[str] = None # For Flight API (IATA or KG ID)
     destination_id: Optional[str] = None # For Flight API (IATA or KG ID)
+    origin_city: Optional[str] = None    # For Weather/Hotels
+    destination_city: Optional[str] = None # For Weather/Hotels
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 

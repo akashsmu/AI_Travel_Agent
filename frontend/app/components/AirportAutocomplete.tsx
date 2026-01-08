@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 interface Suggestion {
     id: string;
     name: string;
+    city_name?: string;
     code: string;
 }
 

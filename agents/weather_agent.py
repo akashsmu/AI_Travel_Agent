@@ -17,8 +17,10 @@ def fetch_weather(state):
 
     # 1. Get coordinates
     try:
-        geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={state.destination}&limit=1&appid={api_key}"
-        logger.info(f"📍 GEOCODING PARAMS: {state.destination}")
+        # Prioritize destination_city (e.g. "San Francisco") over destination (e.g. "SFO Airport")
+        geo_query = state.destination_city or state.destination
+        geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={geo_query}&limit=1&appid={api_key}"
+        logger.info(f"📍 GEOCODING PARAMS: {geo_query}")
         
         resp = requests.get(geo_url)
         geo_data = resp.json()

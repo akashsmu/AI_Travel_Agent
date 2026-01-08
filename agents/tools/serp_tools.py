@@ -127,22 +127,27 @@ def search_google_flights_autocomplete(query: str) -> List[Dict[str, Any]]:
         suggestions = []
         if "suggestions" in results:
             for item in results["suggestions"]:
+                 # Top level (City or Region)
                  raw_id = item.get("id", "")
+                 raw_name = item.get("name", "")
                  display_code = raw_id if len(raw_id) == 3 and raw_id.isupper() else None
                  
                  suggestions.append({
                      "id": raw_id, 
-                     "name": item.get("name"),
+                     "name": raw_name,
+                     "city_name": raw_name, # Current item is the city
                      "code": display_code,
                      "type": "City"
                  })
                  
+                 # Nested airports
                  if "airports" in item:
                      for airport in item["airports"]:
                          air_id = airport.get("id", "")
                          suggestions.append({
                              "id": air_id,
                              "name": f"{airport.get('name')} ({air_id})",
+                             "city_name": raw_name, # Inherit from parent
                              "code": air_id,
                              "type": "Airport"
                          })
@@ -159,8 +164,8 @@ def search_google_hotels(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
     if not os.getenv("SERPAPI_KEY"):
         return []
 
-    # Use Name (e.g. Austin, TX) for Hotels
-    dest_query = full_state.get("destination", "")
+    # Use City Name (e.g. Austin) for Hotels if available, else destination
+    dest_query = full_state.get("destination_city") or full_state.get("destination", "")
     
     params = {
         "engine": "google_hotels",
