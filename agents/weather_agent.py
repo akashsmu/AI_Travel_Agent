@@ -98,7 +98,7 @@ def fetch_weather(state):
             full_summary.append(f"{day_name}: {main_weather}, {min_t:.0f}-{max_t:.0f}°C")
 
         state.weather_info = {
-            "location": state.destination,
+            "location": state.destination_city,
             "forecast": processed_weather
         }
         state.weather_summary = " | ".join(full_summary[:5])

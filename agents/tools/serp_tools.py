@@ -123,7 +123,8 @@ def search_google_flights_autocomplete(query: str) -> List[Dict[str, Any]]:
     try:
         search = GoogleSearch(params)
         results = search.get_dict()
-        
+
+
         suggestions = []
         if "suggestions" in results:
             for item in results["suggestions"]:
@@ -147,11 +148,11 @@ def search_google_flights_autocomplete(query: str) -> List[Dict[str, Any]]:
                          suggestions.append({
                              "id": air_id,
                              "name": f"{airport.get('name')} ({air_id})",
-                             "city_name": raw_name, # Inherit from parent
+                             "city_name": airport.get("city"),
                              "code": air_id,
                              "type": "Airport"
                          })
-                         
+
         return suggestions[:10]
     except Exception as e:
         logger.error(f"SerpAPI Autocomplete Error: {e}")

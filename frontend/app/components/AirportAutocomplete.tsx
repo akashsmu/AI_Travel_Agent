@@ -88,7 +88,6 @@ export default function AirportAutocomplete({ label, value, onChange, onSelect, 
         // Set flag to prevent immediate re-search
         isSelectedRef.current = true;
 
-        onChange(displayVal);
         setQuery(displayVal);
         setIsOpen(false);
     };
