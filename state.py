@@ -27,6 +27,12 @@ class TravelState(BaseModel):
     
     transportation_mode: Optional[str] = "public" # public, car, walking
     budget: Optional[float] = None
+    
+    # Missing fields for Itinerary Agent
+    accessibility_needs: Optional[str] = "None"
+    location_scope: Optional[str] = "Domestic" # Domestic | International
+    travel_pace: Optional[str] = "Moderate" # Relaxed | Moderate | Hectic
+    interests: Optional[str] = "General sightseeing"
 
     weather_summary: Optional[str] = None
     weather_info: Optional[Dict[str, Any]] = None # Structured forecast

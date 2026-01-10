@@ -59,14 +59,14 @@ def search_google_flights(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
         "api_key": os.getenv("SERPAPI_KEY")
     }
     
-    logger.info(f"✈️ FLIGHT SEARCH PARAMS: {params}")
+    #logger.info(f"✈️ FLIGHT SEARCH PARAMS: {params}")
 
     try:
         search = GoogleSearch(params)
         results = search.get_dict()
         
         # EXTENSIVE LOGGING
-        logger.info(f"✈️ RAW FLIGHT RESULTS: {json.dumps(results, indent=2)}")
+        #logger.info(f"✈️ RAW FLIGHT RESULTS: {json.dumps(results, indent=2)}")
 
         if "error" in results:
             logger.error(f"SerpAPI Flights Error: {results['error']}")
@@ -79,20 +79,41 @@ def search_google_flights(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
             if key in results:
                 for flight in results[key]:
                     first_slice = flight.get("flights", [{}])[0]
+                    
+                    # Extract departure and arrival details
+                    dep_airport = first_slice.get("departure_airport", {})
+                    arr_airport = first_slice.get("arrival_airport", {})
+                    
                     flights_data.append({
                         "airline": first_slice.get("airline", "Unknown"),
                         "airline_logo": first_slice.get("airline_logo"),
                         "flight_number": first_slice.get("flight_number"),
                         "airplane": first_slice.get("airplane"),
                         "travel_class": first_slice.get("travel_class"),
+                        
+                        # Airport codes (ID)
                         "origin": dep_id,
                         "destination": arr_id,
+                        
+                        # Airport full names
+                        "origin_name": dep_airport.get("name"),
+                        "destination_name": arr_airport.get("name"),
+                        
+                        # Times
+                        "departure_time": dep_airport.get("time"),
+                        "arrival_time": arr_airport.get("time"),
+                        
+                        # Airport IDs from actual flight data
+                        "departure_airport_id": dep_airport.get("id"),
+                        "arrival_airport_id": arr_airport.get("id"),
+                        
                         "price": flight.get("price", 0),
                         "duration": flight.get("total_duration", "N/A"),
                         "stops": "Nonstop" if len(flight.get("layovers", [])) == 0 else f"{len(flight.get('layovers', []))} stops",
                         "layovers": flight.get("layovers", []),
                         "extensions": flight.get("extensions", []),
-                        "url": search_url, 
+                        "carbon_emissions": flight.get("carbon_emissions", {}),
+                        "url": search_url,
                         "type": f_type,
                         "details": flight 
                     })
@@ -180,14 +201,14 @@ def search_google_hotels(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
         "api_key": os.getenv("SERPAPI_KEY")
     }
     
-    logger.info(f"🏨 HOTEL SEARCH PARAMS: {params}")
+    #logger.info(f"🏨 HOTEL SEARCH PARAMS: {params}")
 
     try:
         search = GoogleSearch(params)
         results = search.get_dict()
         
         # EXTENSIVE LOGGING
-        logger.info(f"🏨 RAW HOTEL RESULTS: {json.dumps(results, indent=2)}")
+        #logger.info(f"🏨 RAW HOTEL RESULTS: {json.dumps(results, indent=2)}")
 
         if "error" in results:
             logger.error(f"SerpAPI Hotels Error: {results['error']}")

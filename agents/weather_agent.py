@@ -20,12 +20,12 @@ def fetch_weather(state):
         # Prioritize destination_city (e.g. "San Francisco") over destination (e.g. "SFO Airport")
         geo_query = state.destination_city or state.destination
         geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={geo_query}&limit=1&appid={api_key}"
-        logger.info(f"📍 GEOCODING PARAMS: {geo_query}")
+        #logger.info(f"📍 GEOCODING PARAMS: {geo_query}")
         
         resp = requests.get(geo_url)
         geo_data = resp.json()
         
-        logger.info(f"📍 RAW GEO DATA: {json.dumps(geo_data, indent=2)}")
+        #logger.info(f"📍 RAW GEO DATA: {json.dumps(geo_data, indent=2)}")
         
         if not geo_data:
             state.weather_summary = f"Could not find coordinates for {state.destination}."
@@ -46,11 +46,11 @@ def fetch_weather(state):
     )
 
     try:
-        logger.info(f"🌤️ WEATHER PARAMS: lat={lat}, lon={lon}")
+        #logger.info(f"🌤️ WEATHER PARAMS: lat={lat}, lon={lon}")
         resp = requests.get(weather_url)
         data = resp.json()
         
-        logger.info(f"🌤️ RAW WEATHER DATA: {json.dumps(data, indent=2)}")
+        #logger.info(f"🌤️ RAW WEATHER DATA: {json.dumps(data, indent=2)}")
         
         if "list" not in data:
             state.weather_summary = "Weather data format error."

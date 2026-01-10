@@ -1,5 +1,5 @@
 
-from fastapi import FastAPI, WebSocket, HTTPException
+from fastapi import FastAPI, WebSocket, HTTPException, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Any
@@ -217,10 +217,14 @@ async def websocket_endpoint(websocket: WebSocket):
             "data": final_state_data
         }))
         
+    except WebSocketDisconnect:
+        logger.info("🔌 WebSocket disconnected (Normal)")
     except Exception as e:
-        logger.error(f"WebSocket Error: {e}")
-        print(f"WebSocket Error: {e}")
-        await websocket.close()
+        logger.error(f"❌ WebSocket Error: {e}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     uvicorn.run("api.server:app", host="0.0.0.0", port=8000, reload=True)
