@@ -1,0 +1,173 @@
+
+def search_google_sights(location: str) -> List[Dict[str, Any]]:
+    """
+    Search for top sights using Google Search (or specialized engine if available).
+    """
+    if not os.getenv("SERPAPI_KEY"):
+        return []
+
+    params = {
+        "engine": "google", # Using standard google search for broad coverage, or google_local
+        "q": f"top sights in {location}",
+        "google_domain": "google.com",
+        "gl": "us",
+        "hl": "en",
+        "api_key": os.getenv("SERPAPI_KEY")
+    }
+
+    try:
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        
+        sights = []
+        # Attempt to parse knowledge graph or organic results
+        if "knowledge_graph" in results:
+             kg = results["knowledge_graph"]
+             if "title" in kg:
+                 sights.append({
+                     "title": kg.get("title"),
+                     "type": kg.get("type"),
+                     "description": kg.get("description"),
+                     "image": kg.get("header_images", [{}])[0].get("image") if kg.get("header_images") else None
+                 })
+        
+        # Parse 'Top Sights' carousel if available
+        if "top_sights" in results:
+             for sight in results["top_sights"].get("sights", []):
+                 sights.append({
+                     "title": sight.get("title"),
+                     "description": sight.get("description"),
+                     "price": sight.get("price"),
+                     "rating": sight.get("rating"),
+                     "reviews": sight.get("reviews"),
+                     "image": sight.get("thumbnail")
+                 })
+
+        return sights[:10]
+    except Exception as e:
+        logger.error(f"❌ SerpAPI Sights Exception: {e}")
+        return []
+
+def search_google_local(location: str) -> List[Dict[str, Any]]:
+    """
+    Search for local gems (restaurants/attractions) using Google Local.
+    """
+    if not os.getenv("SERPAPI_KEY"):
+        return []
+
+    params = {
+        "engine": "google_local",
+        "q": f"places to visit in {location}", # Broad query
+        "location": location,
+        "google_domain": "google.com",
+        "gl": "us",
+        "hl": "en",
+        "api_key": os.getenv("SERPAPI_KEY")
+    }
+
+    try:
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        
+        places = []
+        if "local_results" in results:
+            for place in results["local_results"]:
+                places.append({
+                    "title": place.get("title"),
+                    "rating": place.get("rating"),
+                    "reviews": place.get("reviews"),
+                    "type": place.get("type"),
+                    "address": place.get("address"),
+                    "thumbnail": place.get("thumbnail"),
+                    "description": place.get("description") # Sometimes available
+                })
+        return places[:10]
+    except Exception as e:
+        logger.error(f"❌ SerpAPI Local Exception: {e}")
+        return []
+
+def search_google_news(location: str) -> List[Dict[str, Any]]:
+    """
+    Search for local news using Google News engine.
+    """
+    if not os.getenv("SERPAPI_KEY"):
+        return []
+
+    params = {
+        "engine": "google_news",
+        "q": location,
+        "gl": "us",
+        "hl": "en",
+        "api_key": os.getenv("SERPAPI_KEY")
+    }
+
+    try:
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        
+        news_items = []
+        if "news_results" in results:
+            for item in results["news_results"]:
+                news_items.append({
+                    "title": item.get("title"),
+                    "source": item.get("source", {}).get("title"),
+                    "date": item.get("date"),
+                    "snippet": item.get("snippet"),
+                    "image": item.get("thumbnail"),
+                    "link": item.get("link")
+                })
+        return news_items[:5]
+    except Exception as e:
+        logger.error(f"❌ SerpAPI News Exception: {e}")
+        return []
+
+def search_google_discussions(location: str) -> List[Dict[str, Any]]:
+    """
+    Search for forum discussions (Reddit, TripAdvisor, etc.).
+    """
+    if not os.getenv("SERPAPI_KEY"):
+        return []
+    
+    # We use standard google search with "Discussions" filter logic or specific site queries
+    # A reliable way is checking 'discussions_and_forums' block in standard search
+    
+    params = {
+        "engine": "google",
+        "q": f"{location} travel tips forum",
+        "google_domain": "google.com",
+        "gl": "us",
+        "hl": "en",
+        "api_key": os.getenv("SERPAPI_KEY")
+    }
+
+    try:
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        
+        discussions = []
+        if "discussions_and_forums" in results:
+            for item in results["discussions_and_forums"]:
+                 discussions.append({
+                     "title": item.get("title"),
+                     "source": item.get("source"),
+                     "link": item.get("link"),
+                     "date": item.get("date"),
+                     "snippet": item.get("snippet")
+                 })
+                 
+        # Fallback to organic results if they look like forums
+        if not discussions and "organic_results" in results:
+             for item in results["organic_results"]:
+                 link = item.get("link", "")
+                 if "reddit.com" in link or "tripadvisor.com" in link or "lonelyplanet.com" in link:
+                     discussions.append({
+                         "title": item.get("title"),
+                         "source": item.get("source") or item.get("displayed_link"),
+                         "link": link,
+                         "snippet": item.get("snippet")
+                     })
+
+        return discussions[:5]
+    except Exception as e:
+        logger.error(f"❌ SerpAPI Discussions Exception: {e}")
+        return []

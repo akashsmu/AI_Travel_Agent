@@ -56,7 +56,6 @@ def fetch_weather(state):
             state.weather_summary = "Weather data format error."
             return state
 
-        # ... (rest of processing remains same) ...
         from collections import defaultdict
         from datetime import datetime
         

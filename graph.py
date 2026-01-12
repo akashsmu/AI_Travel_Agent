@@ -27,6 +27,8 @@ def route_cache(state):
     return "live_search"
 
 
+from agents.community_agent import fetch_community_data
+
 def build_graph():
     graph = StateGraph(TravelState)
 
@@ -38,6 +40,7 @@ def build_graph():
     graph.add_node("recommend_hotels", recommend_hotels)
     graph.add_node("recommend_flights", recommend_flights)
     graph.add_node("itinerary", generate_itinerary)
+    graph.add_node("community_agent", fetch_community_data)
 
     graph.set_entry_point("weather")
 
@@ -52,9 +55,11 @@ def build_graph():
         },
     )
 
-    # Cache miss path: LLM → Flight API enrich → Store → Recommend
+    # Cache miss path
+    
     graph.add_edge("live_search", "flight_api")
-    graph.add_edge("flight_api", "store")
+    graph.add_edge("flight_api", "community_agent")
+    graph.add_edge("community_agent", "store")
     graph.add_edge("store", "recommend_hotels")
 
     graph.add_edge("recommend_hotels", "recommend_flights")

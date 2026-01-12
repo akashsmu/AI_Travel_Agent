@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import AirportAutocomplete from './components/AirportAutocomplete';
 import FlightCard from './components/FlightCard';
 import WeatherWidget from './components/WeatherWidget';
+import CommunitySection from './components/CommunitySection';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function HomePage() {
@@ -462,6 +463,16 @@ export default function HomePage() {
                   </div>
                 </div>
               )}
+
+              {/* Community & Local Insights */}
+              <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8">
+                <CommunitySection
+                  topSights={results.top_sights || []}
+                  localPlaces={results.local_places || []}
+                  localNews={results.local_news || []}
+                  discussions={results.discussions || []}
+                />
+              </div>
 
               {/* Flights */}
               {results.flights && results.flights.length > 0 && (

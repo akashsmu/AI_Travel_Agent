@@ -82,6 +82,50 @@ def save_trip_plan(state: TravelState):
                 h.get("description")
             ))
 
+        # 6. Insert Top Sights
+        if state.top_sights:
+            sights_query = """
+                INSERT INTO top_sights (trip_id, title, description, price, rating, reviews, image)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            for s in state.top_sights:
+                cur.execute(sights_query, (
+                    trip_id, s.get("title"), s.get("description"), s.get("price"), s.get("rating"), s.get("reviews"), s.get("image")
+                ))
+
+        # 7. Insert Local Places
+        if state.local_places:
+            local_query = """
+                INSERT INTO local_places (trip_id, title, type, address, rating, thumbnail, description)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            for p in state.local_places:
+                cur.execute(local_query, (
+                    trip_id, p.get("title"), p.get("type"), p.get("address"), p.get("rating"), p.get("thumbnail"), p.get("description")
+                ))
+        
+        # 8. Insert Local News
+        if state.local_news:
+            news_query = """
+                INSERT INTO local_news (trip_id, title, source, date, snippet, image, link)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            for n in state.local_news:
+                cur.execute(news_query, (
+                    trip_id, n.get("title"), n.get("source"), n.get("date"), n.get("snippet"), n.get("image"), n.get("link")
+                ))
+        
+        # 9. Insert Discussions
+        if state.discussions:
+            discuss_query = """
+                INSERT INTO discussions (trip_id, title, source, snippet, link, date)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            for d in state.discussions:
+                cur.execute(discuss_query, (
+                    trip_id, d.get("title"), d.get("source"), d.get("snippet"), d.get("link"), d.get("date")
+                ))
+
         conn.commit()
         conn.close()
         logger.info(f"💾 Trip plan saved for {state.destination} (ID: {trip_id})")
@@ -166,6 +210,26 @@ def find_cached_trip(params: Union[dict, TravelState]) -> Union[dict, None]:
             h['price'] = h['price_per_night'] 
             h['image'] = h['image_url']
             hotels.append(h)
+        
+        # Sights
+        cur.execute("SELECT title, description, price, rating, reviews, image FROM top_sights WHERE trip_id = %s", (trip_id,))
+        sights_columns = [col[0] for col in cur.description]
+        sights = [dict(zip(sights_columns, r)) for r in cur.fetchall()]
+
+        # Local Places
+        cur.execute("SELECT title, type, address, rating, thumbnail, description FROM local_places WHERE trip_id = %s", (trip_id,))
+        places_columns = [col[0] for col in cur.description]
+        local_places = [dict(zip(places_columns, r)) for r in cur.fetchall()]
+        
+        # News
+        cur.execute("SELECT title, source, date, snippet, image, link FROM local_news WHERE trip_id = %s", (trip_id,))
+        news_columns = [col[0] for col in cur.description]
+        local_news = [dict(zip(news_columns, r)) for r in cur.fetchall()]
+        
+        # Discussions
+        cur.execute("SELECT title, source, snippet, link, date FROM discussions WHERE trip_id = %s", (trip_id,))
+        discuss_columns = [col[0] for col in cur.description]
+        discussions = [dict(zip(discuss_columns, r)) for r in cur.fetchall()]
 
         conn.close()
 
@@ -176,6 +240,10 @@ def find_cached_trip(params: Union[dict, TravelState]) -> Union[dict, None]:
             "weather_summary": weather_summary,
             "flights": flights,
             "accommodations": hotels,
+            "top_sights": sights,
+            "local_places": local_places,
+            "local_news": local_news,
+            "discussions": discussions,
             "itinerary": itinerary,
             "cached": True
         }

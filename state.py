@@ -40,5 +40,11 @@ class TravelState(BaseModel):
     flights: List[Dict[str, Any]] = []
     recommended_hotels: List[Dict[str, Any]] = []
     
+    # New SerpAPI Data
+    top_sights: List[Dict[str, Any]] = []
+    local_places: List[Dict[str, Any]] = []
+    local_news: List[Dict[str, Any]] = []
+    discussions: List[Dict[str, Any]] = []
+    
     itinerary: Optional[str] = None
     messages: List[Any] = [] # For chat history

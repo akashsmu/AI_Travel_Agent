@@ -107,6 +107,73 @@ def init_db():
         );
     """)
 
+    # 6. Top Sights
+    cur.execute("DROP TABLE IF EXISTS top_sights")
+    cur.execute("""
+        CREATE TABLE top_sights (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
+            title VARCHAR(255),
+            description TEXT,
+            price VARCHAR(100),
+            rating FLOAT,
+            reviews INT,
+            image TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY(trip_id)
+        );
+    """)
+
+    # 7. Local Places
+    cur.execute("DROP TABLE IF EXISTS local_places")
+    cur.execute("""
+        CREATE TABLE local_places (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
+            title VARCHAR(255),
+            type VARCHAR(100),
+            address TEXT,
+            rating FLOAT,
+            thumbnail TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY(trip_id)
+        );
+    """)
+
+    # 8. Local News
+    cur.execute("DROP TABLE IF EXISTS local_news")
+    cur.execute("""
+        CREATE TABLE local_news (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
+            title VARCHAR(255),
+            source VARCHAR(255),
+            date VARCHAR(100),
+            snippet TEXT,
+            image TEXT,
+            link TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY(trip_id)
+        );
+    """)
+
+    # 9. Discussions
+    cur.execute("DROP TABLE IF EXISTS discussions")
+    cur.execute("""
+        CREATE TABLE discussions (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            trip_id BIGINT,
+            title VARCHAR(255),
+            source VARCHAR(255),
+            snippet TEXT,
+            link TEXT,
+            date VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY(trip_id)
+        );
+    """)
+
     conn.commit()
     print("✅ Database tables initialized successfully.")
     conn.close()
