@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Hotel, Calendar, DollarSign, Users, Briefcase,
@@ -12,6 +12,7 @@ import AirportAutocomplete from './components/AirportAutocomplete';
 import FlightCard from './components/FlightCard';
 import WeatherWidget from './components/WeatherWidget';
 import CommunitySection from './components/CommunitySection';
+import ItineraryDisplay from './components/ItineraryDisplay';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function HomePage() {
@@ -41,6 +42,18 @@ export default function HomePage() {
   });
 
   const [logs, setLogs] = useState<string[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const [chatInput, setChatInput] = useState('');
+
+  const handleSendFeedback = () => {
+    if (!chatInput.trim() || !wsRef.current) return;
+
+    wsRef.current.send(JSON.stringify({
+      type: 'user_feedback',
+      message: chatInput
+    }));
+    setChatInput('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,16 +61,17 @@ export default function HomePage() {
     setResults(null);
     setLogs([]);
 
+    // Close existing connection if any
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+
     // 1. Start WebSocket connection for real-time logs
     const ws = new WebSocket(`${API_URL.replace('http', 'ws')}/ws/chat`);
+    wsRef.current = ws;
 
     ws.onopen = () => {
       console.log('Connected to WebSocket');
-      // Send initial data to start the graph (if your backend supports receiving it via WS)
-      // Note: Current backend implementation might expect HTTP POST to start, 
-      // but let's assume we want to just listen or if we modify backend to accept start via WS.
-      // Based on server.py, /ws/chat accepts text and runs the graph.
-
       // Use IDs if available, else fallback to whatever user typed (display value)
       ws.send(JSON.stringify({
         origin: displayOrigin, // Send Name for Weather/Hotels/LLM
@@ -81,21 +95,27 @@ export default function HomePage() {
       }));
     };
 
+    // ... existing onmessage and onerror ...
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'update') {
         // It's a log/step update
         setLogs(prev => [...prev, `Checking ${data.step}...`]);
+        // Update results with partial data if available
+        if (data.data) {
+          setResults(data.data);
+        }
       } else if (data.type === 'complete' || data.itinerary) {
-        // It's the final result (server.py might need tweaks to send this structure exactly, 
-        // but let's assume standard graph output)
         if (data.data) {
           setResults(data.data); // If wrapped
         } else {
           setResults(data); // If direct state
         }
-        ws.close();
         setIsLoading(false);
+        // Do NOT close WS immediately if we want to support chat!
+        // ws.close(); 
+      } else if (data.type === 'status') {
+        setLogs(prev => [...prev, data.message]);
       } else if (data.type === 'error') {
         console.error("WS Error:", data);
         alert("Error during planning");
@@ -520,23 +540,46 @@ export default function HomePage() {
 
               {/* Itinerary */}
               {results.itinerary && (
-                <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center">
-                    <Palmtree className="mr-3 text-purple-600" />
-                    Your Personalized Itinerary
-                  </h2>
-                  <div className="prose prose-lg max-w-none">
-                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200 whitespace-pre-wrap text-gray-700 leading-relaxed">
-                      {results.itinerary}
-                    </div>
-                  </div>
-                </div>
+                <ItineraryDisplay itinerary={results.itinerary} />
               )
               }
             </motion.div >
           )}
         </AnimatePresence >
       </div >
-    </div >
+      {/* Chat Interface (Only visible when results exist) */}
+      <AnimatePresence>
+        {results && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-50"
+          >
+            <div className="container mx-auto max-w-3xl flex gap-3 items-center">
+              <input
+                type="text"
+                placeholder="Suggest changes (e.g., 'Find cheaper hotels', 'Make it a fast-paced trip')..."
+                className="flex-1 px-4 py-3 rounded-full border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none shadow-sm"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSendFeedback();
+                  }
+                }}
+              />
+              <button
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-3 shadow-md transition-colors disabled:opacity-50"
+                onClick={handleSendFeedback}
+                disabled={!chatInput.trim()}
+              >
+                <Sparkles size={20} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

@@ -190,11 +190,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif hasattr(value, "dict"): 
                      final_state_data.update(value.dict())
                 
-                # Send update to client
+                # Send update to client with partial data
                 await websocket.send_text(json.dumps({
                     "type": "update",
                     "step": key,
-                    "message": f"Completed {key}"
+                    "message": f"Completed {key}",
+                    "data": final_state_data  # Send accumulated state
                 }))
         
         # 3. SAVE to DB
@@ -216,6 +217,85 @@ async def websocket_endpoint(websocket: WebSocket):
             "message": "Planning complete!",
             "data": final_state_data
         }))
+
+        # 4. CHAT LOOP for Refinement
+        while True:
+            try:
+                msg_text = await websocket.receive_text()
+                msg_json = json.loads(msg_text)
+                
+                if msg_json.get("type") == "user_feedback":
+                    user_msg = msg_json.get("message")
+                    logger.info(f"💬 Received feedback: {user_msg}")
+                    
+                    await websocket.send_text(json.dumps({"type": "status", "message": "Refining your plan..."}))
+
+                    # 1. Access current state (reconstruct from final_state_data + initial)
+                    # We need to make sure 'final_state_data' has the latest values
+                    current_full_dict = initial_state.dict()
+                    current_full_dict.update(final_state_data)
+                    current_state_obj = TravelState(**current_full_dict)
+
+                    # 2. Run Modifier
+                    from agents.modifier_agent import modify_state
+                    new_state, updates = await asyncio.to_thread(modify_state, current_state_obj, user_msg)
+                    
+                    # Update local tracking
+                    final_state_data.update(new_state.dict())
+                    initial_state = new_state # Update baseline for next loop
+                    
+                    # 3. Conditional Re-runs
+                    # If rerun_hotels -> Run hotels THEN itinerary
+                    # If rerun_itinerary -> Run itinerary only
+                    
+                    rerun_hotels = updates.get("rerun_hotels")
+                    rerun_itinerary = updates.get("rerun_itinerary")
+                    
+                    if rerun_hotels:
+                        logger.info("🏨 Re-running Hotel Recommendations...")
+                        await websocket.send_text(json.dumps({"type": "update", "step": "recommend_hotels", "message": "Finding new hotels..."}))
+                        
+                        # Invoke Agent Directly
+                        hotel_result = await asyncio.to_thread(recommend_hotels, new_state)
+                        # Update state
+                        if "accommodations" in hotel_result:
+                            new_state.accommodations = hotel_result["accommodations"]
+                            final_state_data["accommodations"] = hotel_result["accommodations"]
+                            
+                        # Send Partial Update
+                        await websocket.send_text(json.dumps({
+                            "type": "update", "step": "recommend_hotels", "message": "Hotels updated!", "data": final_state_data
+                        }))
+                        
+                        # Force Itinerary update if hotels changed
+                        rerun_itinerary = True
+
+                    if rerun_itinerary:
+                        logger.info("📝 Re-generating Itinerary...")
+                        await websocket.send_text(json.dumps({"type": "update", "step": "itinerary", "message": "Updating itinerary..."}))
+                        
+                        itin_result = await asyncio.to_thread(generate_itinerary, new_state)
+                        if "itinerary" in itin_result:
+                            new_state.itinerary = itin_result["itinerary"]
+                            final_state_data["itinerary"] = itin_result["itinerary"]
+                            
+                        await websocket.send_text(json.dumps({
+                            "type": "update", "step": "itinerary", "message": "Itinerary updated!", "data": final_state_data
+                        }))
+
+                    # Save updated plan
+                    # await asyncio.to_thread(save_trip_plan, new_state) # Optional: save every refinement
+
+                    await websocket.send_text(json.dumps({
+                        "type": "complete", "message": "Plan updated!", "data": final_state_data
+                    }))
+
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"Chat Loop Error: {e}")
+                break
+
         
     except WebSocketDisconnect:
         logger.info("🔌 WebSocket disconnected (Normal)")
