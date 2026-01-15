@@ -2,37 +2,44 @@
 
 A production-grade AI travel planning system powered by **LangGraph**, **SerpAPI**, and **SingleStore**, with a premium **React (Next.js)** frontend.
 
-## Features
+## 🚀 Key Features
 
-- 🔍 **Real-time Search**: Google Flights & Hotels via SerpAPI
-- 📝 **AI Itinerary Generation**: Day-by-day travel plans
-- 💾 **Persistent State**: SingleStore for caching and real-time updates
-- 🎨 **Premium UI**: Modern React interface with real-time streaming
-- 📊 **Production-Ready**: Comprehensive logging, error handling, and schemas
+- ⚡ **Real-time Streaming**: Progressive rendering of results (Weather -> Flights -> Hotels -> Sights) via WebSockets.
+- 💬 **Interactive Chatbot**: Refine your hotel preferences and itinerary style in real-time (e.g., "Find cheaper hotels" or "Make it more adventurous").
+- 📸 **Community & Local Insights**: Rich data for top sights, local gems, news, and neighborhood discussions via SerpAPI expansion.
+- 🌤️ **Local Weather**: Live weather forecasts and summaries for your destination.
+- ✈️ **Enhanced Flight Search**: Google Flights integration with carbon emissions, amenities, and detailed layover info.
+- 🏨 **Smart Hotel Recommendations**: Personalized hotel picks matching your budget and rating preferences.
+- 📝 **Beautiful Itineraries**: AI-generated day-by-day plans rendered with a polished Markdown interface.
+- 💾 **Persistent Memory**: SingleStoreDB for high-performance caching and historical trip persistence.
 
-## Architecture
+## 🏗️ Architecture
 
+```mermaid
+graph TD
+    A[React Frontend] <-->|WebSocket| B[FastAPI Server]
+    B <--> C{LangGraph Orchestrator}
+    C --> D[Weather Agent]
+    C --> E[Search Agent - Hotels]
+    C --> F[Flight API Agent]
+    C --> G[Community Agent - Sights/News]
+    C --> H[Modifier Agent - Chat Loop]
+    C --> I[Itinerary Agent]
+    B <--> J[(SingleStoreDB)]
+    C <--> J
 ```
-┌─────────────┐
-│  React/Next │───► FastAPI Server ───► LangGraph
-└─────────────┘         │                   │
-                        │                   ▼
-                        │          Agents (Search, Itinerary)
-                        │                   │
-                        ▼                   ▼
-                   SingleStore ◄────── SerpAPI Tools
-```
 
-## Setup
+## 🛠️ Setup
 
 ### 1. Prerequisites
 
 - Python 3.9+
 - Node.js 18+
-- SingleStore Database (cloud or self-hosted)
+- SingleStore Database (Cloud or Self-hosted)
 - API Keys:
   - OpenAI API Key
   - SerpAPI Key
+  - OpenWeatherMap API Key
 
 ### 2. Backend Setup
 
@@ -48,19 +55,13 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your keys:
-# OPENAI_API_KEY=sk-...
-# SERPAPI_API_KEY=...
-# SINGLESTORE_URL=admin:password@host:port/database_name
-
-# Initialize database
-python database/init_db.py
+# Edit .env with your keys
 ```
 
 ### 3. Frontend Setup
 
 ```bash
-cd web
+cd frontend
 
 # Install dependencies
 npm install
@@ -79,92 +80,50 @@ python -m uvicorn api.server:app --reload --port 8000
 
 **Terminal 2 - Frontend:**
 ```bash
-cd web
+cd frontend
 npm run dev
 ```
 
 Visit: `http://localhost:3000`
 
-## Project Structure
+## 📂 Project Structure
 
 ```
 AI-Travel-Agent/
 ├── agents/
 │   ├── tools/
-│   │   └── serp_tools.py       # SerpAPI wrappers
-│   ├── search_agent.py         # Hotel search
-│   ├── flight_api_agent.py     # Flight search
-│   ├── itinerary_agent.py      # Itinerary generation
-│   └── ...
+│   │   └── serp_tools.py       # Expanded SerpAPI wrappers
+│   ├── community_agent.py      # Sights, Local, News, Forums
+│   ├── modifier_agent.py       # Chat feedback interpreter
+│   ├── search_agent.py         # Google Hotels logic
+│   ├── flight_api_agent.py     # Google Flights logic
+│   ├── itinerary_agent.py      # Prompt-engineered generation
+│   └── weather_agent.py        # Weather & Geocoding
 ├── database/
-│   ├── init_db.py              # Schema initialization
-│   ├── singlestore_client.py   # DB connection
-│   ├── cache.py                # Cache lookups
-│   └── store_results.py        # Data persistence
+│   ├── init_db.py              # Normalized schema definition
+│   ├── ops.py                  # Persistence & Cache logic
+│   └── singlestore_client.py   # Connection pooling
 ├── api/
-│   └── server.py               # FastAPI endpoints & WebSocket
-├── utils/
-│   └── logger.py               # Centralized logging
-├── graph.py                    # LangGraph flow definition
-├── state.py                    # State schema
-├── main.py                     # CLI interface
-└── web/                        # Next.js frontend
-    └── ...
+│   └── server.py               # FastAPI & WebSocket streaming
+├── state.py                    # Pydantic TravelState model
+├── graph.py                    # LangGraph node & edge definition
+└── frontend/                   # Next.js 15+ App Router
+    └── app/
+        ├── components/         # Premium UI Components
+        └── page.tsx            # Real-time dashboard
 ```
 
-## API Endpoints
+## 📊 Database Schema
 
-### HTTP
+### `trip_plans` (Parent)
+Stores core search parameters and user preferences.
 
-- `POST /plan` - Run full trip planning
-  ```json
-  {
-    "origin": "SFO",
-    "destination": "NYC",
-    "start_date": "2024-05-10",
-    "end_date": "2024-05-15"
-  }
-  ```
+### `flights`, `accommodations`, `weather` (Children)
+Stored normalized data with rich JSON details for caching.
 
-### WebSocket
+### `top_sights`, `local_places`, `local_news`, `discussions` (New)
+Expanded tables for community-driven local insights.
 
-- `WS /ws/chat` - Stream real-time updates
-
-## Database Schema
-
-### `flights`
-- `id`, `airline`, `origin`, `destination`, `price`, `url`, `details` (JSON), `created_at`
-
-### `accommodations`
-- `id`, `name`, `city`, `country`, `price_per_night`, `rating`, `bedrooms`, `url`, `description`, `created_at`
-
-### `trip_plans`
-- `id`, `origin`, `destination`, `start_date`, `end_date`, `itinerary_text`, `created_at`
-
-## Logging
-
-All agents and database operations use centralized logging (`utils/logger.py`):
-- INFO: Normal operations
-- WARNING: Non-critical issues
-- ERROR: Failures with stack traces
-
-## Development
-
-### Testing Backend
-```bash
-python test_backend.py
-```
-
-### Extending Agents
-
-Add new nodes to `graph.py`:
-```python
-from agents.my_new_agent import my_function
-
-graph.add_node("my_node", my_function)
-graph.add_edge("previous_node", "my_node")
-```
-
-## License
+## 📝 License
 
 MIT
