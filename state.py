@@ -52,3 +52,8 @@ class TravelState(BaseModel):
     # Personalization & Constraints
     user_preferences: List[str] = [] # From Mem0
     constraint_violations: List[str] = [] # Budget/Time issues
+    
+    # Analysis & Correction
+    trip_analysis: Optional[str] = None
+    retry_count: int = 0
+    last_error: Optional[str] = None

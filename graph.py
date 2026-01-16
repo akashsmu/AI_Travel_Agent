@@ -29,6 +29,8 @@ def route_cache(state):
 
 from agents.community_agent import fetch_community_data
 from agents.constraint_agent import check_constraints
+from agents.correction_agent import correction_node, should_correct
+from agents.reasoning_agent import reasoning_node
 from utils.memory import MemoryManager
 from utils.logger import logger
 
@@ -46,7 +48,7 @@ def load_memories(state: TravelState) -> dict:
 def build_graph():
     graph = StateGraph(TravelState)
 
-    graph.add_node("load_profile", load_memories) # NEW
+    graph.add_node("load_profile", load_memories) 
     graph.add_node("weather", fetch_weather)
     graph.add_node("cache", check_cache)
     graph.add_node("live_search", live_search)
@@ -54,11 +56,15 @@ def build_graph():
     graph.add_node("store", store_results)
     graph.add_node("recommend_hotels", recommend_hotels)
     graph.add_node("recommend_flights", recommend_flights)
-    graph.add_node("check_constraints", check_constraints) # NEW
+    graph.add_node("check_constraints", check_constraints)
     graph.add_node("itinerary", generate_itinerary)
     graph.add_node("community_agent", fetch_community_data)
+    
+    # New Nodes
+    graph.add_node("correction", correction_node)
+    graph.add_node("reasoning", reasoning_node)
 
-    graph.set_entry_point("load_profile") # UPDATED ENTRY
+    graph.set_entry_point("load_profile") 
 
     graph.add_edge("load_profile", "weather")
     graph.add_edge("weather", "cache")
@@ -74,14 +80,28 @@ def build_graph():
 
     # Cache miss path
     graph.add_edge("live_search", "flight_api")
-    graph.add_edge("flight_api", "community_agent")
+    
+    # Conditional Edge for Correction (After Flights)
+    graph.add_conditional_edges(
+        "flight_api",
+        should_correct,
+        {
+            "correction": "correction",
+            "continue": "community_agent"
+        }
+    )
+    
+    # Correction Loop
+    graph.add_edge("correction", "live_search") # Restart search with new params
+
     graph.add_edge("community_agent", "store")
     graph.add_edge("store", "recommend_hotels")
 
     # Common path
     graph.add_edge("recommend_hotels", "recommend_flights")
-    graph.add_edge("recommend_flights", "check_constraints") # NEW FLOW
+    graph.add_edge("recommend_flights", "check_constraints") 
     graph.add_edge("check_constraints", "itinerary")
-    graph.add_edge("itinerary", END)
+    graph.add_edge("itinerary", "reasoning") # UPDATED
+    graph.add_edge("reasoning", END)         # UPDATED
 
     return graph.compile()

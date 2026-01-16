@@ -538,6 +538,19 @@ export default function HomePage() {
                 </div>
               )}
 
+              {/* Agent Note / Reasoning */}
+              {results.trip_analysis && (
+                <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800 rounded-3xl p-8 shadow-sm">
+                  <h2 className="text-xl font-bold mb-4 flex items-center gap-3 text-indigo-900 dark:text-indigo-100">
+                    <span className="text-2xl">🧠</span>
+                    Agent Insight
+                  </h2>
+                  <p className="text-gray-700 dark:text-gray-300 italic text-lg leading-relaxed">
+                    "{results.trip_analysis}"
+                  </p>
+                </div>
+              )}
+
               {/* Itinerary */}
               {results.itinerary && (
                 <ItineraryDisplay itinerary={results.itinerary} />
