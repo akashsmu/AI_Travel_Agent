@@ -10,3 +10,4 @@ websockets
 langgraph
 langchain
 langchain_openai
+mem0ai

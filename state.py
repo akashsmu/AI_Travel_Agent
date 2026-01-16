@@ -48,3 +48,7 @@ class TravelState(BaseModel):
     
     itinerary: Optional[str] = None
     messages: List[Any] = [] # For chat history
+    
+    # Personalization & Constraints
+    user_preferences: List[str] = [] # From Mem0
+    constraint_violations: List[str] = [] # Budget/Time issues

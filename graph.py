@@ -28,10 +28,25 @@ def route_cache(state):
 
 
 from agents.community_agent import fetch_community_data
+from agents.constraint_agent import check_constraints
+from utils.memory import MemoryManager
+from utils.logger import logger
+
+def load_memories(state: TravelState) -> dict:
+    mem_mgr = MemoryManager()
+    user_id = "default_user" 
+    try:
+        prefs = mem_mgr.get_all_memories(user_id)
+        logger.info(f"Loaded {len(prefs)} memories")
+        return {"user_preferences": prefs}
+    except Exception as e:
+        logger.error(f"Error loading memories: {e}")
+        return {"user_preferences": []}
 
 def build_graph():
     graph = StateGraph(TravelState)
 
+    graph.add_node("load_profile", load_memories) # NEW
     graph.add_node("weather", fetch_weather)
     graph.add_node("cache", check_cache)
     graph.add_node("live_search", live_search)
@@ -39,11 +54,13 @@ def build_graph():
     graph.add_node("store", store_results)
     graph.add_node("recommend_hotels", recommend_hotels)
     graph.add_node("recommend_flights", recommend_flights)
+    graph.add_node("check_constraints", check_constraints) # NEW
     graph.add_node("itinerary", generate_itinerary)
     graph.add_node("community_agent", fetch_community_data)
 
-    graph.set_entry_point("weather")
+    graph.set_entry_point("load_profile") # UPDATED ENTRY
 
+    graph.add_edge("load_profile", "weather")
     graph.add_edge("weather", "cache")
 
     graph.add_conditional_edges(
@@ -56,14 +73,15 @@ def build_graph():
     )
 
     # Cache miss path
-    
     graph.add_edge("live_search", "flight_api")
     graph.add_edge("flight_api", "community_agent")
     graph.add_edge("community_agent", "store")
     graph.add_edge("store", "recommend_hotels")
 
+    # Common path
     graph.add_edge("recommend_hotels", "recommend_flights")
-    graph.add_edge("recommend_flights", "itinerary")
+    graph.add_edge("recommend_flights", "check_constraints") # NEW FLOW
+    graph.add_edge("check_constraints", "itinerary")
     graph.add_edge("itinerary", END)
 
     return graph.compile()

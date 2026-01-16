@@ -4,6 +4,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from state import TravelState
+from utils.memory import MemoryManager
 
 class StateUpdate(BaseModel):
     """
@@ -16,6 +17,9 @@ class StateUpdate(BaseModel):
     interests: Optional[List[str]] = Field(None, description="Updated list of interests")
     trip_purpose: Optional[str] = Field(None, description="Updated trip purpose")
     bedrooms: Optional[int] = Field(None, description="Updated number of bedrooms")
+    
+    # New Field for Memory
+    new_preference: Optional[str] = Field(None, description="Any permanent user preference extracted from the feedback (e.g., 'User hates hostels', 'User prefers Delta')")
 
     # Flags to indicate what needs re-running
     rerun_hotels: bool = Field(False, description="True if hotel preferences changed")
@@ -40,7 +44,7 @@ prompt = ChatPromptTemplate.from_messages([
     2. Map it to the `StateUpdate` schema fields.
     3. Set `rerun_hotels` to True if price, rating, or bedrooms change.
     4. Set `rerun_itinerary` to True if pace, interests, or purpose change.
-    5. If the user asks for something currently unsupported (like changing destination/dates), ignore it or output null for those fields.
+    5. If the user expresses a general preference (e.g., "I always fly Delta", "I hate hostels"), extract it into `new_preference`.
     
     Return only the JSON object matching StateUpdate.
     """),
@@ -86,8 +90,18 @@ def modify_state(state: TravelState, message: str) -> tuple[TravelState, dict]:
         if updates.trip_purpose:
              new_state.trip_purpose = updates.trip_purpose
              
+        # 3. Handle Memory
+        if updates.new_preference:
+            mem_mgr = MemoryManager()
+            user_id = "default_user" # Should come from state in real app
+            mem_mgr.add_memory(user_id, updates.new_preference)
+            # Update local state too so it's used immediately
+            new_state.user_preferences.append(updates.new_preference)
+             
         return new_state, updates.dict()
         
     except Exception as e:
         print(f"Error modifying state: {e}")
         return state, {}
+
+
