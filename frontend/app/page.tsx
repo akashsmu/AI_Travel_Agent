@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { format } from 'date-fns';
+import { DynamicWidget } from './components/DynamicWidget';
 import AirportAutocomplete from './components/AirportAutocomplete';
 import FlightCard from './components/FlightCard';
 import WeatherWidget from './components/WeatherWidget';
@@ -484,15 +485,30 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Community & Local Insights */}
-              <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8">
-                <CommunitySection
-                  topSights={results.top_sights || []}
-                  localPlaces={results.local_places || []}
-                  localNews={results.local_news || []}
-                  discussions={results.discussions || []}
-                />
-              </div>
+              {/* Generative UI Stream (Widgets) */}
+              {results.generated_ui && results.generated_ui.length > 0 ? (
+                <div className="space-y-6">
+                  <h2 className="text-3xl font-bold text-gray-800 mb-4 flex items-center px-2">
+                    <span className="mr-3 text-4xl">✨</span>
+                    Local Discovery
+                  </h2>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {results.generated_ui.map((widget: any, idx: number) => (
+                      <DynamicWidget key={idx} widget={widget} />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* Fallback to old component if no widgets generated */
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8">
+                  <CommunitySection
+                    topSights={results.top_sights || []}
+                    localPlaces={results.local_places || []}
+                    localNews={results.local_news || []}
+                    discussions={results.discussions || []}
+                  />
+                </div>
+              )}
 
               {/* Flights */}
               {results.flights && results.flights.length > 0 && (

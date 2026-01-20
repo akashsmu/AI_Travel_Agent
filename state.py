@@ -57,3 +57,6 @@ class TravelState(BaseModel):
     trip_analysis: Optional[str] = None
     retry_count: int = 0
     last_error: Optional[str] = None
+
+    # Generative UI
+    generated_ui: List[Dict[str, Any]] = [] # List of widget objects
