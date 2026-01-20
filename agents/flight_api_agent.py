@@ -1,37 +1,76 @@
-
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from pydantic import BaseModel, Field
+from typing import List
 from agents.tools.serp_tools import search_google_flights
 from utils.logger import setup_logger
 
 logger = setup_logger("flight_agent")
 
+class AirlinePreferences(BaseModel):
+    preferred_airlines: List[str] = Field(default_factory=list, description="List of preferred airline names (e.g., 'Delta', 'United')")
+    excluded_airlines: List[str] = Field(default_factory=list, description="List of airlines to avoid (e.g., 'Spirit', 'Ryanair')")
+
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+parser = JsonOutputParser(pydantic_object=AirlinePreferences)
+
+preference_prompt = ChatPromptTemplate.from_messages([
+    ("system", """
+    You are an Airline Preference Extractor.
+    
+    Task: Analyze the user's travel memories/preferences and extract specific airline constraints.
+    
+    User Memories:
+    {memories}
+    
+    Instructions:
+    1. Identify positive preferences (e.g., "I strictly fly Delta", "Star Alliance only") -> `preferred_airlines`.
+    2. Identify negative preferences (e.g., "No Spirit", "Avoid low cost carriers") -> `excluded_airlines`.
+    3. If "Star Alliance" is mentioned, expand to: United, Lufthansa, Air Canada, ANA, Singapore Airlines, Turkish Airlines.
+    4. If "OneWorld" is mentioned, expand to: American, British Airways, Cathay Pacific, Qantas.
+    5. If "SkyTeam" is mentioned, expand to: Delta, Air France, KLM, Korean Air.
+    6. If "No Low Cost", add: Spirit, Frontier, Ryanair, EasyJet, Southwest (if context implies).
+    
+    Return JSON matching the AirlinePreferences schema.
+    """),
+    ("user", "Extract preferences.")
+])
+
+chain = preference_prompt | llm | parser
+
 def fetch_flights_from_api(state):
     """
-    Fetch flights using SerpAPI (Google Flights).
+    Fetch flights using SerpAPI (Google Flights) with smart LLM filtering.
     """
     logger.info(f"✈️ Searching flights from {state.origin} to {state.destination}...")
     flights = search_google_flights(state.model_dump())
     
-    # Post-process with Mem0 Preferences
+    # Smart Filter with Mem0
     if state.user_preferences and flights:
-        preferred_airlines = [p.lower() for p in state.user_preferences if "airline" in p.lower() or "fly" in p.lower()]
-        
-        # Simple extraction of airline names from preferences (e.g., "I prefer Delta")
-        # In a real agent, we'd use an LLM or stricter Memory structure. 
-        
-        target_keywords = []
-        for p in state.user_preferences:
-            if "delta" in p.lower(): target_keywords.append("Delta")
-            if "united" in p.lower(): target_keywords.append("United")
-            if "american" in p.lower(): target_keywords.append("American")
-            if "lufthansa" in p.lower(): target_keywords.append("Lufthansa")
-            if "british" in p.lower(): target_keywords.append("British")
-            if "france" in p.lower(): target_keywords.append("France")
-            if "emirates" in p.lower(): target_keywords.append("Emirates")
+        try:
+            memories_text = "\n".join(state.user_preferences)
+            logger.info("🧠 Analyzing airline preferences with LLM...")
             
-        if target_keywords:
-            logger.info(f"✨ Filtering for preferred airlines: {target_keywords}")
-            # Sort to put preferred airlines at top
-            flights.sort(key=lambda x: any(k.lower() in x.get('airline', '').lower() for k in target_keywords), reverse=True)
+            result = chain.invoke({"memories": memories_text})
+            prefs = AirlinePreferences(**result)
+            
+            # Application Logic
+            if prefs.excluded_airlines:
+                original_count = len(flights)
+                flights = [f for f in flights if not any(ex.lower() in f.get('airline', '').lower() for ex in prefs.excluded_airlines)]
+                if len(flights) < original_count:
+                    logger.info(f"🚫 Filtered {original_count - len(flights)} flights based on exclusion list: {prefs.excluded_airlines}")
+
+            if prefs.preferred_airlines:
+                # boost preferred
+                logger.info(f"✨ Boosting airlines: {prefs.preferred_airlines}")
+                # Create a score: 1 if preferred, 0 if not. Sort desc.
+                flights.sort(key=lambda x: any(p.lower() in x.get('airline', '').lower() for p in prefs.preferred_airlines), reverse=True)
+                
+        except Exception as e:
+            logger.error(f"Preference extraction failed: {e}")
+            # Fallback: maintain original order
 
     if flights:
         logger.info(f"✅ Found {len(flights)} flights from SerpAPI.")

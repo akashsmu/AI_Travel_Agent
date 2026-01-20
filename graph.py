@@ -60,7 +60,7 @@ def build_graph():
     graph.add_node("itinerary", generate_itinerary)
     graph.add_node("community_agent", fetch_community_data)
     
-    # New Nodes
+    
     graph.add_node("correction", correction_node)
     graph.add_node("reasoning", reasoning_node)
 
@@ -101,7 +101,7 @@ def build_graph():
     graph.add_edge("recommend_hotels", "recommend_flights")
     graph.add_edge("recommend_flights", "check_constraints") 
     graph.add_edge("check_constraints", "itinerary")
-    graph.add_edge("itinerary", "reasoning") # UPDATED
-    graph.add_edge("reasoning", END)         # UPDATED
+    graph.add_edge("itinerary", "reasoning") 
+    graph.add_edge("reasoning", END)         
 
     return graph.compile()

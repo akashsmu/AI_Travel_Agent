@@ -44,7 +44,10 @@ prompt = ChatPromptTemplate.from_messages([
     2. Map it to the `StateUpdate` schema fields.
     3. Set `rerun_hotels` to True if price, rating, or bedrooms change.
     4. Set `rerun_itinerary` to True if pace, interests, or purpose change.
-    5. If the user expresses a general preference (e.g., "I always fly Delta", "I hate hostels"), extract it into `new_preference`.
+    5. If the user expresses a general preference, extract it into `new_preference` using a structured format like "Category: [Value]".
+       - Example: "Airline: Delta Only"
+       - Example: "Hotel: No Hostels"
+       - Example: "Food: Vegetarian options required"
     
     Return only the JSON object matching StateUpdate.
     """),
