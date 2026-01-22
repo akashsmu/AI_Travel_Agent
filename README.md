@@ -1,32 +1,53 @@
-# AI Travel Agent
+# AI Travel Agent (Generation 2.0)
 
-A production-grade AI travel planning system powered by **LangGraph**, **SerpAPI**, and **SingleStore**, with a premium **React (Next.js)** frontend.
+A production-grade AI travel planning system powered by **LangGraph**, **SerpAPI**, **SingleStore**, and **Mem0**, featuring a **Generative UI** and **Self-Correcting Agents**.
 
 ## 🚀 Key Features
 
-- ⚡ **Real-time Streaming**: Progressive rendering of results (Weather -> Flights -> Hotels -> Sights) via WebSockets.
-- 💬 **Interactive Chatbot**: Refine your hotel preferences and itinerary style in real-time (e.g., "Find cheaper hotels" or "Make it more adventurous").
-- 📸 **Community & Local Insights**: Rich data for top sights, local gems, news, and neighborhood discussions via SerpAPI expansion.
-- 🌤️ **Local Weather**: Live weather forecasts and summaries for your destination.
-- ✈️ **Enhanced Flight Search**: Google Flights integration with carbon emissions, amenities, and detailed layover info.
-- 🏨 **Smart Hotel Recommendations**: Personalized hotel picks matching your budget and rating preferences.
-- 📝 **Beautiful Itineraries**: AI-generated day-by-day plans rendered with a polished Markdown interface.
-- 💾 **Persistent Memory**: SingleStoreDB for high-performance caching and historical trip persistence.
+### 🧠 Intelligent & Personalized
+- **Long-Term Memory (Mem0)**: Remembers your preferences across sessions (e.g., "I hate hostels", "I prefer Delta").
+- **Strict Preference Extraction**: Uses LLMs to strictly enforce complex rules like "Star Alliance Only" or "No Low Cost Carriers".
+- **Reasoning Engine**: Analyzes the final trip to provide proactive "Agent Insights" (e.g., warning about weather or layovers).
+
+### ✨ Generative UI
+- **Dynamic Widgets**: The frontend doesn't just render static cards; the agents decide *what* to show (News Cards, Video Widgets, Place Cards) based on the search results.
+- **Real-time Streaming**: Progressive rendering of results via WebSockets.
+
+### 🛡️ Robust Architecture
+- **Self-Correction Layer**: If searches fail (e.g., no flights found), the agent automatically adjusts parameters (nearby airports, flexible dates) and retries.
+- **Constraint Validation**: Checks your budget and time constraints before finalizing the plan.
+
+### 🌍 Comprehensive Planning
+- **Community Insights**: Sights, local gems, news, and neighborhood discussions.
+- **Live Weather**: Forecasts and summaries.
+- **Smart Search**: Google Flights & Hotels integration with rich metadata.
 
 ## 🏗️ Architecture
 
 ```mermaid
 graph TD
-    A[React Frontend] <-->|WebSocket| B[FastAPI Server]
+    A[React GenUI Frontend] <-->|WebSocket| B[FastAPI Server]
     B <--> C{LangGraph Orchestrator}
-    C --> D[Weather Agent]
-    C --> E[Search Agent - Hotels]
-    C --> F[Flight API Agent]
-    C --> G[Community Agent - Sights/News]
-    C --> H[Modifier Agent - Chat Loop]
-    C --> I[Itinerary Agent]
-    B <--> J[(SingleStoreDB)]
-    C <--> J
+    
+    subgraph "Memory & Personalization"
+    D[Mem0 Manager] -->|Load Profile| C
+    end
+
+    subgraph "Core Planning Pipeline"
+    C --> E[Weather Agent]
+    C --> F[Search Agent - Hotels]
+    C --> G[Flight API Agent]
+    C --> H[Community Agent - GenUI]
+    end
+
+    subgraph "Safety & Intelligence"
+    F & G --> I{Correction Node}
+    I -->|Retry with new params| F & G
+    C --> J[Constraint Checker]
+    C --> K[Reasoning Agent]
+    end
+
+    B <--> L[(SingleStoreDB)]
 ```
 
 ## 🛠️ Setup
@@ -36,10 +57,11 @@ graph TD
 - Python 3.9+
 - Node.js 18+
 - SingleStore Database (Cloud or Self-hosted)
-- API Keys:
-  - OpenAI API Key
-  - SerpAPI Key
-  - OpenWeatherMap API Key
+- **API Keys**:
+  - `OPENAI_API_KEY`
+  - `SERPAPI_API_KEY`
+  - `OPENWEATHER_API_KEY`
+  - `MEM0_API_KEY` (Optional, for cloud memory)
 
 ### 2. Backend Setup
 
@@ -55,7 +77,7 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your keys
+# Edit .env and ADD: MEM0_API_KEY=your_key
 ```
 
 ### 3. Frontend Setup
@@ -91,38 +113,25 @@ Visit: `http://localhost:3000`
 ```
 AI-Travel-Agent/
 ├── agents/
-│   ├── tools/
-│   │   └── serp_tools.py       # Expanded SerpAPI wrappers
-│   ├── community_agent.py      # Sights, Local, News, Forums
-│   ├── modifier_agent.py       # Chat feedback interpreter
-│   ├── search_agent.py         # Google Hotels logic
-│   ├── flight_api_agent.py     # Google Flights logic
-│   ├── itinerary_agent.py      # Prompt-engineered generation
-│   └── weather_agent.py        # Weather & Geocoding
-├── database/
-│   ├── init_db.py              # Normalized schema definition
-│   ├── ops.py                  # Persistence & Cache logic
-│   └── singlestore_client.py   # Connection pooling
-├── api/
-│   └── server.py               # FastAPI & WebSocket streaming
-├── state.py                    # Pydantic TravelState model
-├── graph.py                    # LangGraph node & edge definition
-└── frontend/                   # Next.js 15+ App Router
-    └── app/
-        ├── components/         # Premium UI Components
-        └── page.tsx            # Real-time dashboard
+│   ├── tools/                  # SerpAPI tools
+│   ├── community_agent.py      # Generates GenUI Widgets
+│   ├── correction_agent.py     # Heuristic Retry Logic
+│   ├── reasoning_agent.py      # Post-trip Analysis
+│   ├── flight_api_agent.py     # LLM-based Airline Filtering
+│   ├── modifier_agent.py       # Chat & Memory Saver
+│   └── ...
+├── utils/
+│   ├── memory.py               # Mem0 Integration
+│   └── logger.py
+├── frontend/app/
+│   ├── components/
+│   │   ├── widgets/            # GenUI Components (News, Video, Place)
+│   │   └── DynamicWidget.tsx   # Widget Dispatcher
+│   └── page.tsx                # Main Chat Interface
+├── graph.py                    # Advanced LangGraph Flow
+├── state.py                    # TravelState with Generated UI support
+└── ...
 ```
-
-## 📊 Database Schema
-
-### `trip_plans` (Parent)
-Stores core search parameters and user preferences.
-
-### `flights`, `accommodations`, `weather` (Children)
-Stored normalized data with rich JSON details for caching.
-
-### `top_sights`, `local_places`, `local_news`, `discussions` (New)
-Expanded tables for community-driven local insights.
 
 ## 📝 License
 
