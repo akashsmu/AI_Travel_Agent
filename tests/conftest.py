@@ -20,9 +20,33 @@ def mock_travel_state():
     )
 
 @pytest.fixture
-def mock_itinerary_input():
-    return """
-    Day 1: Arrive in London. Check into The Ritz.
-    Day 2: Visit Buckingham Palace and British Museum.
-    Day 3: Day trip to Oxford.
+def mock_conflict_state():
     """
+    Scenario: User loves Delta but has a low budget.
+    Delta is expensive ($600), Spirit is cheap ($200). Max budget is $300.
+    """
+    return TravelState(
+        origin="New York",
+        destination="Miami",
+        max_flight_price=300.0,
+        user_preferences=["I strictly fly Delta"],
+        flights=[
+            {"airline": "Delta", "price": 600, "departure": "10:00"},
+            {"airline": "Spirit", "price": 200, "departure": "06:00"},
+            {"airline": "JetBlue", "price": 290, "departure": "14:00"}
+        ]
+    )
+
+@pytest.fixture
+def mock_empty_state():
+    """
+    Scenario: User searches but no results found initially.
+    """
+    state = TravelState(
+        origin="Nowhere",
+        destination="Nowhere",
+        retry_count=0
+    )
+    state.flights = []
+    state.accommodations = []
+    return state
