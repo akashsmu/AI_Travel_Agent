@@ -5,11 +5,27 @@ from graph import build_graph
 from state import TravelState
 
 
+import hashlib
+
 def main():
     print("=== AI Travel Agent (LangGraph Edition) ===")
 
+    user_name = input("Enter your name: ").strip()
+    if not user_name:
+        user_name = "default_user"
+    
+    pin = input("Enter a 4-digit PIN (e.g., 1234): ").strip()
+    if not pin or len(pin) != 4:
+        print("Invalid PIN. Using default '0000'.")
+        pin = "0000"
+    
+    # Hash the user name + PIN to generate a unique ID
+    identifier = f"{user_name}:{pin}"
+    user_id = hashlib.sha256(identifier.encode()).hexdigest()[:12]
+    print(f"Welcome back, {user_name}! (ID: {user_id})")
+
     graph = build_graph()
-    thread_id = "user_123"
+    thread_id = user_id
     config = {"configurable": {"thread_id": thread_id}}
     
     # Initialize messages list to track history in state
