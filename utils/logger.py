@@ -28,3 +28,6 @@ def setup_logger(name="ai_travel_agent", log_file="app.log", level=logging.INFO)
         logger.addHandler(console_handler)
         
     return logger
+
+# Create a default logger instance for easy import
+logger = setup_logger()

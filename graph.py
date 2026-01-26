@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 
 from state import TravelState
 from agents.weather_agent import fetch_weather
@@ -37,13 +38,43 @@ from utils.logger import logger
 def load_memories(state: TravelState) -> dict:
     mem_mgr = MemoryManager()
     user_id = "default_user" 
+    
+    # Semantic search: use last message or origin/destination as query
+    query = ""
+    if state.messages:
+        query = str(state.messages[-1])
+    elif state.origin and state.destination:
+        query = f"trip from {state.origin} to {state.destination}"
+    
     try:
-        prefs = mem_mgr.get_all_memories(user_id)
-        logger.info(f"Loaded {len(prefs)} memories")
+        if query:
+            prefs = mem_mgr.get_memories(user_id, query=query)
+            logger.info(f"Loaded {len(prefs)} contextual memories for query: {query}")
+        else:
+            prefs = mem_mgr.get_all_memories(user_id)
+            logger.info(f"Loaded {len(prefs)} general memories")
+            
         return {"user_preferences": prefs}
     except Exception as e:
         logger.error(f"Error loading memories: {e}")
         return {"user_preferences": []}
+
+def save_memory_node(state: TravelState):
+    """Summarizes and saves key trip preferences to semantic memory."""
+    mem_mgr = MemoryManager()
+    user_id = "default_user"
+    
+    memory_text = f"User planned a trip from {state.origin} to {state.destination}."
+    if state.trip_analysis:
+        memory_text += f" Analysis: {state.trip_analysis}"
+    
+    try:
+        mem_mgr.add_memory(user_id, memory_text)
+        logger.info(f"🧠 Saved trip memory: {memory_text}")
+    except Exception as e:
+        logger.error(f"Failed to save trip memory: {e}")
+    
+    return state
 
 def build_graph():
     graph = StateGraph(TravelState)
@@ -63,6 +94,7 @@ def build_graph():
     
     graph.add_node("correction", correction_node)
     graph.add_node("reasoning", reasoning_node)
+    graph.add_node("save_memory", save_memory_node)
 
     graph.set_entry_point("load_profile") 
 
@@ -102,6 +134,8 @@ def build_graph():
     graph.add_edge("recommend_flights", "check_constraints") 
     graph.add_edge("check_constraints", "itinerary")
     graph.add_edge("itinerary", "reasoning") 
-    graph.add_edge("reasoning", END)         
+    graph.add_edge("reasoning", "save_memory")
+    graph.add_edge("save_memory", END)         
 
-    return graph.compile()
+    checkpointer = MemorySaver()
+    return graph.compile(checkpointer=checkpointer)
