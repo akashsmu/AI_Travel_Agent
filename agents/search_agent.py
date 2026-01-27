@@ -3,9 +3,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.tools.serp_tools import search_google_hotels
 from utils.logger import setup_logger
+from utils.llm_factory import get_llm
 
 logger = setup_logger("search_agent")
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
+llm = get_llm(temperature=0)
 
 def live_search(state):
     """

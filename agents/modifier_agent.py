@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from state import TravelState
 from utils.memory import MemoryManager
+from utils.llm_factory import get_llm
 
 class StateUpdate(BaseModel):
     """
@@ -25,7 +26,7 @@ class StateUpdate(BaseModel):
     rerun_hotels: bool = Field(False, description="True if hotel preferences changed")
     rerun_itinerary: bool = Field(False, description="True if itinerary preferences changed (pace, interests, purpose)")
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
+llm = get_llm(temperature=0)
 
 parser = JsonOutputParser(pydantic_object=StateUpdate)
 

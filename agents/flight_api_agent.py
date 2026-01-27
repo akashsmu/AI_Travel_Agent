@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from agents.tools.serp_tools import search_google_flights
 from utils.logger import setup_logger
+from utils.llm_factory import get_llm
 
 logger = setup_logger("flight_agent")
 
@@ -12,7 +13,7 @@ class AirlinePreferences(BaseModel):
     preferred_airlines: List[str] = Field(default_factory=list, description="List of preferred airline names (e.g., 'Delta', 'United')")
     excluded_airlines: List[str] = Field(default_factory=list, description="List of airlines to avoid (e.g., 'Spirit', 'Ryanair')")
 
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+llm = get_llm(temperature=0)
 parser = JsonOutputParser(pydantic_object=AirlinePreferences)
 
 preference_prompt = ChatPromptTemplate.from_messages([

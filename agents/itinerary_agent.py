@@ -4,6 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import os
 from utils.logger import setup_logger
+from utils.llm_factory import get_llm
 
 logger = setup_logger("itinerary_agent")
 
@@ -15,7 +16,7 @@ def generate_itinerary(state):
     
     logger.info("📝 Generating itinerary...")
     
-    llm = ChatOpenAI(model=os.getenv("OPENAI_CHAT_MODEL", "gpt-4-turbo"), temperature=0.7)
+    llm = get_llm(temperature=0.7)
     
     # Prepare context
     hotels_str = "\n".join([f"- {h.get('name')} in {h.get('city')} (${h.get('price')}/night)" for h in state.accommodations[:3]])

@@ -7,7 +7,9 @@ from utils.logger import setup_logger
 
 load_dotenv()
 logger = setup_logger()
+from utils.retry import with_retry
 
+@with_retry(max_retries=3, backoff_factor=2)
 def search_google_flights(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Search for flights using SerpAPI Google Flights engine.
@@ -26,7 +28,7 @@ def search_google_flights(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
     dep_id = full_state.get("origin_id") or full_state.get("origin", "")
     arr_id = full_state.get("destination_id") or full_state.get("destination", "")
 
-    # SELF-CORRECTION: If valid ID format (3 chars uppercase or starts with /m/), use it.
+    # If valid ID format (3 chars uppercase or starts with /m/), use it.
     # Otherwise, try to resolve it via autocomplete.
     def is_valid_id(val):
         return val and ((len(val) == 3 and val.isupper()) or val.startswith("/m/"))
@@ -126,6 +128,7 @@ def search_google_flights(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
         logger.error(f"❌ SerpAPI Flights Exception: {e}")
         return []
 
+@with_retry(max_retries=3, backoff_factor=2)
 def search_google_flights_autocomplete(query: str) -> List[Dict[str, Any]]:
     """
     Autocomplete for airports using SerpAPI.
@@ -179,6 +182,7 @@ def search_google_flights_autocomplete(query: str) -> List[Dict[str, Any]]:
         logger.error(f"SerpAPI Autocomplete Error: {e}")
         return []
 
+@with_retry(max_retries=3, backoff_factor=2)
 def search_google_hotels(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Search for hotels using SerpAPI Google Hotels engine.
@@ -238,6 +242,7 @@ def search_google_hotels(full_state: Dict[str, Any]) -> List[Dict[str, Any]]:
         logger.error(f"❌ SerpAPI Hotels Exception: {e}")
         return []
 
+@with_retry(max_retries=3, backoff_factor=2)
 def search_google_sights(location: str) -> List[Dict[str, Any]]:
     """
     Search for top sights using Google Search (or specialized engine if available).
@@ -287,6 +292,7 @@ def search_google_sights(location: str) -> List[Dict[str, Any]]:
         logger.error(f"❌ SerpAPI Sights Exception: {e}")
         return []
 
+@with_retry(max_retries=3, backoff_factor=2)
 def search_google_local(location: str) -> List[Dict[str, Any]]:
     """
     Search for local gems (restaurants/attractions) using Google Local.
@@ -325,6 +331,7 @@ def search_google_local(location: str) -> List[Dict[str, Any]]:
         logger.error(f"❌ SerpAPI Local Exception: {e}")
         return []
 
+@with_retry(max_retries=3, backoff_factor=2)
 def search_google_news(location: str) -> List[Dict[str, Any]]:
     """
     Search for local news using Google News engine.
@@ -360,6 +367,7 @@ def search_google_news(location: str) -> List[Dict[str, Any]]:
         logger.error(f"❌ SerpAPI News Exception: {e}")
         return []
 
+@with_retry(max_retries=3, backoff_factor=2)
 def search_google_discussions(location: str) -> List[Dict[str, Any]]:
     """
     Search for forum discussions (Reddit, TripAdvisor, etc.).

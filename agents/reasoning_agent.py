@@ -4,7 +4,9 @@ from langchain_core.output_parsers import StrOutputParser
 from state import TravelState
 from utils.logger import logger
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
+from utils.llm_factory import get_llm
+
+llm = get_llm(temperature=0.7)
 
 def reasoning_node(state: TravelState):
     """
