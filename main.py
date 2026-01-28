@@ -52,6 +52,10 @@ def main():
         
         min_rating = input("Min rating (default 4.0): ").strip()
         min_rating = float(min_rating) if min_rating else 4.0
+        
+        temp_unit = input("Weather Unit (C/F, default C): ").strip().upper()
+        if temp_unit not in ["C", "F"]:
+            temp_unit = "C"
 
         # Create input state. 
         # Note: In multi-turn, we might want to preserve some previous state but override others.
@@ -67,6 +71,7 @@ def main():
         input_data["bedrooms"] = bedrooms
         input_data["max_price_per_night"] = max_price
         input_data["min_rating"] = min_rating
+        input_data["temp_unit"] = temp_unit # Pass user preference
 
         final_state = graph.invoke(input_data, config=config)
 

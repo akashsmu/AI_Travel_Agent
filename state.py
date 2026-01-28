@@ -10,6 +10,9 @@ class TravelState(BaseModel):
     destination_city: Optional[str] = None # For Weather/Hotels
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    
+    # User Preferences
+    temp_unit: Optional[str] = "C" # C or F
 
     bedrooms: Optional[int] = 1
     max_price_per_night: Optional[float] = 200.0

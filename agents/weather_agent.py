@@ -76,8 +76,15 @@ def fetch_weather(state):
         full_summary = []
         
         for date, info in sorted(daily_forecasts.items()):
-            min_t = min(info["temps"])
-            max_t = max(info["temps"])
+            min_c = min(info["temps"])
+            max_c = max(info["temps"])
+            avg_c = sum(info["temps"])/len(info["temps"])
+            
+            # Local Conversion to F
+            min_f = (min_c * 9/5) + 32
+            max_f = (max_c * 9/5) + 32
+            avg_f = (avg_c * 9/5) + 32
+            
             main_weather = max(set(info["weather"]), key=info["weather"].count)
             
             try:
@@ -88,17 +95,31 @@ def fetch_weather(state):
             processed_weather.append({
                 "date": date,
                 "day": day_name,
-                "min_temp": round(min_t, 1),
-                "max_temp": round(max_t, 1),
                 "condition": main_weather,
-                "avg_temp": round(sum(info["temps"])/len(info["temps"]), 1)
+                
+                # Store dual units
+                "min_temp_c": round(min_c, 1),
+                "max_temp_c": round(max_c, 1),
+                "avg_temp_c": round(avg_c, 1),
+                
+                "min_temp_f": round(min_f, 1),
+                "max_temp_f": round(max_f, 1),
+                "avg_temp_f": round(avg_f, 1),
             })
             
-            full_summary.append(f"{day_name}: {main_weather}, {min_t:.0f}-{max_t:.0f}°C")
+            # Formatting based on preference
+            unit = state.temp_unit or "C"
+            if unit == "F":
+                temp_str = f"{min_f:.0f}-{max_f:.0f}°F"
+            else:
+                temp_str = f"{min_c:.0f}-{max_c:.0f}°C"
+            
+            full_summary.append(f"{day_name}: {main_weather}, {temp_str}")
 
         state.weather_info = {
             "location": state.destination_city,
-            "forecast": processed_weather
+            "forecast": processed_weather,
+            "units": "dual"
         }
         state.weather_summary = " | ".join(full_summary[:5])
 
