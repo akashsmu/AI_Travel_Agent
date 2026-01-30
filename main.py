@@ -7,8 +7,12 @@ from state import TravelState
 
 import hashlib
 
+from utils.security import SecurityManager
+
 def main():
     print("=== AI Travel Agent (LangGraph Edition) ===")
+    
+    security = SecurityManager()
 
     user_name = input("Enter your name: ").strip()
     if not user_name:
@@ -33,13 +37,24 @@ def main():
 
     while True:
         print("\n--- New Request (type 'exit' to quit) ---")
-        origin = input("Origin (e.g., BLR) [Enter for last]: ").strip()
-        if origin.lower() == 'exit':
+        origin_raw = input("Origin (e.g., BLR) [Enter for last]: ").strip()
+        if origin_raw.lower() == 'exit':
             break
             
-        destination = input("Destination (e.g., Mumbai) [Enter for last]: ").strip()
-        if destination.lower() == 'exit':
+        destination_raw = input("Destination (e.g., Mumbai) [Enter for last]: ").strip()
+        if destination_raw.lower() == 'exit':
             break
+            
+        # Security Check
+        is_safe, origin = security.validate_and_clean(origin_raw)
+        if not is_safe:
+            print(f"🚫 {origin}") # Prints block message
+            continue
+            
+        is_safe, destination = security.validate_and_clean(destination_raw)
+        if not is_safe:
+            print(f"🚫 {destination}")
+            continue
 
         start_date = input("Start date (YYYY-MM-DD): ").strip()
         end_date = input("End date (YYYY-MM-DD): ").strip()

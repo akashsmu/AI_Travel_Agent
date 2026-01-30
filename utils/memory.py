@@ -3,6 +3,8 @@ from typing import List, Dict, Any
 from mem0 import MemoryClient
 from utils.logger import logger
 
+from utils.security import SecurityManager
+
 class MemoryManager:
     _instance = None
     
@@ -10,6 +12,7 @@ class MemoryManager:
         if cls._instance is None:
             cls._instance = super(MemoryManager, cls).__new__(cls)
             cls._instance.client = None
+            cls._instance.security = SecurityManager() # Init security
             cls._instance._initialize_client()
         return cls._instance
     
@@ -29,6 +32,9 @@ class MemoryManager:
         """Add a memory for a specific user."""
         if not self.client:
             return
+            
+        # Sanitize before storing
+        text = self.security.sanitize_input(text)
             
         try:
             self.client.add(text, user_id=user_id)
