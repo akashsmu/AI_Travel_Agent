@@ -4,9 +4,13 @@ from typing import Tuple
 
 logger = logging.getLogger("security_manager")
 
+from deepeval.metrics import ToxicityMetric
+from deepeval.test_case import LLMTestCase
+
 class SecurityManager:
     """
     Handles input sanitization, PII masking, and basic prompt injection detection.
+    Also uses DeepEval for toxicity/harmful content detection.
     """
     
     def __init__(self):
@@ -30,6 +34,10 @@ class SecurityManager:
             "developer mode",
             "disable safety"
         ]
+
+        # Initialize DeepEval Metric
+        # Note: threshold 0.5 means if it's > 50% toxic, it fails.
+        self.toxicity_metric = ToxicityMetric(threshold=0.5)
 
     def sanitize_input(self, text: str) -> str:
         """
@@ -56,13 +64,44 @@ class SecurityManager:
                 return True
         return False
 
+    def detect_harmful_content(self, text: str) -> bool:
+        """
+        Uses DeepEval to detect toxic or harmful content.
+        Returns True if harmful.
+        """
+        try:
+            # DeepEval expects an 'LLMTestCase'
+            test_case = LLMTestCase(
+                input=text, 
+                actual_output=text # minimal needed mostly for metric internal structure
+            )
+            
+            self.toxicity_metric.measure(test_case)
+            
+            # If successful (score is low enough), success is True.
+            # If toxic, success is False.
+            if not self.toxicity_metric.is_successful():
+                logger.warning(f"🚨 Toxic content detected! Score: {self.toxicity_metric.score}")
+                return True
+                
+            return False
+            
+        except Exception as e:
+            logger.error(f"DeepEval check failed: {e}")
+            # Fail open or closed? Let's fail open for now to not block if service is down,
+            # but log heavily.
+            return False
+
     def validate_and_clean(self, text: str) -> Tuple[bool, str]:
         """
-        Full pass: Detect injection -> Sanitize PII.
+        Full pass: Detect injection -> Detect Harmful -> Sanitize PII.
         Returns (is_safe, cleaned_text).
-        If injection detected, is_safe=False and text is empty or warning.
+        If blocked, is_safe=False and text is warning.
         """
         if self.detect_injection(text):
-            return False, "Input blocked due to safety policies."
+            return False, "Input blocked due to projection injection policies."
+            
+        if self.detect_harmful_content(text):
+            return False, "Input blocked due to harmful/toxic content policies."
             
         return True, self.sanitize_input(text)
