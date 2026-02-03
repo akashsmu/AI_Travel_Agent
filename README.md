@@ -2,7 +2,17 @@
 
 A production-grade AI travel planning system powered by **LangGraph**, **SerpAPI**, **SingleStore**, and **Mem0**, featuring a **Generative UI** and **Self-Correcting Agents**.
 
-## 🚀 Key Features
+## 🚀 Key Features (v2.1)
+
+### 🛡️ Security & Guardrails
+- **DeepEval Toxicity Checks**: Real-time LLM-based detection of harmful/sexual content using `ToxicityMetric`.
+- **PII Masking**: "Firewall" regex layer automatically redacts credit cards, emails, and passport IDs.
+- **Prompt Injection Defense**: Heuristic detection blocks jailbreak attempts (e.g., "Ignore previous instructions").
+
+### ⚡ Reliability & Performance
+- **Exponential Backoff**: API calls (SerpAPI) automatically retry with increasing delays upon failure.
+- **Model Fallback**: Auto-switches from GPT-4o -> Claude 3.5 -> Llama 3 if the primary model fails.
+- **Local Weather Conversion**: Fetches metric data once and calculates Fahrenheit locally, toggleable by user.
 
 ### 🧠 Intelligent & Personalized
 - **Long-Term Memory (Mem0)**: Remembers your preferences across sessions (e.g., "I hate hostels", "I prefer Delta").
